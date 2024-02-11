@@ -85,6 +85,8 @@ def wba_handler():
                     challenge = request.args.get("hub.challenge")
                     return challenge, 200
                 
+        return 'Forbidden', 403
+                
     elif request.method == 'POST':
         config_value = request.args.get('config')
         if config_value and check_config_value(config_value, 'whatsapp'):
@@ -107,6 +109,7 @@ def wba_handler():
                     message = '( ͡° ͜ʖ ͡°) \nВ этот чат принимаются только текстовые сообщения.'           
                     whatsapp.send_message(config_value, phone, message)                
         return "Webhook received!", 200
+    return 'Forbidden', 403
     
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8000)
