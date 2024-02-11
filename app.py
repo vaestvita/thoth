@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 import os
 import json
 
@@ -21,6 +21,24 @@ def check_config_value(config_value, service, bitrix24_domain=None):
 
 
 app = Flask(__name__)
+
+
+@app.route('/', methods=['GET', 'POST'])
+def project_info():
+    if request.method == 'GET' or request.method == 'POST':
+        info = {
+            'App': {
+                'Name': 'Bitrix24 Integration Hub - Thoth',
+                'URL': 'https://github.com/vaestvita/thoth'
+            },
+            'Developer': {
+                'Name': 'Anton Gulin',
+                'Phone': '+7 705 864 55 43',
+                'Mail': 'antgulin@ya.ru'
+            }
+        }
+        return jsonify(info)
+
 
 @app.route('/install', methods=['POST'])
 def app_install():
