@@ -74,7 +74,7 @@ def main():
         'PLACEMENT_HANDLER': placement_handler
     }
 
-    response = requests.post(f'{client_endpoint}/imconnector.register', json=imconnector_data).json()
+    response = requests.post(f'{client_endpoint}imconnector.register', json=imconnector_data).json()
     
     if 'error' in response:
         print("Ошибка при регистрации коннектора:", response)
@@ -90,7 +90,7 @@ def main():
             'HANDLER': placement_handler
         }
         
-        response = requests.get(f'{client_endpoint}/event.bind.json', params=event_data).json()
+        response = requests.get(f'{client_endpoint}event.bind.json', params=event_data).json()
         if 'error' in response:
             print("Ошибка при привязке события:", response)
         else:
