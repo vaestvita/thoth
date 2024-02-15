@@ -11,17 +11,34 @@ def connector_activate(config_value, connector, line):
         'ACTIVE': 1
     }
 
-    response =  crest.call_api('POST', 'imconnector.activate', connection_data, config_value)
+    try:
+        response = crest.call_api('POST', 'imconnector.activate', connection_data, config_value)
 
-    # Если ответ успешный, обновляем значение line в файле конфигурации
-    if response['result']:
-        crest.write_to_config(config_value, {'line': line})
+        # Проверка успешности ответа
+        if response.get('result'):
+            # Обновление конфигурации
+            crest.write_to_config(config_value, {'line': line})
+        else:
+            print("Ошибка при активации коннектора: нет результата в ответе.")
+            return response
+
+    except Exception as e:
+        print(f"Ошибка при вызове API: {e}")
+        return {"error": str(e)}
 
     return response
 
 
 def send_message(config_value, message_data):
     bitrix_data = crest.get_params(config_value, 'bitrix')
+
+    # Инициализация списка файлов
+    files = []
+    
+    # Проверка наличия ключа 'file_url' в полученных данных
+    if 'file_url' in message_data:
+        # Добавление URL файла в список файлов
+        files.append({'url': message_data['file_url']})
 
     message_data = {
         'CONNECTOR': bitrix_data['connector_id'],
@@ -35,7 +52,8 @@ def send_message(config_value, message_data):
                     'skip_phone_validate': 'Y'
                 },
                 'message': {
-                    'text': message_data['body']
+                    'text': message_data['body'],
+                    'files': files
                 },
                 'chat': {
                     'url': f"https://web.whatsapp.com/send/?phone={message_data['wa_id']}"
@@ -104,3 +122,28 @@ def get_personal_mobile(users):
             if personal_mobile:
                 personal_mobiles.append(personal_mobile)
     return personal_mobiles
+
+
+
+def uploadfile(config_value, file_content_base64, filename):
+
+    bitrix_data = crest.get_params(config_value, 'bitrix')
+
+    file_data = {
+        'id': bitrix_data['storage_id'], 
+        'fileContent': file_content_base64,
+        'data': {'NAME': filename}
+    }
+
+    response =  crest.call_api('POST', 'disk.storage.uploadfile', file_data, config_value)
+
+    return response
+    
+
+def imconnector_unregister(config_value, line_value):
+    bitrix_data = crest.get_params(config_value, 'bitrix')
+    if bitrix_data['line'] == line_value:
+        connector_id = bitrix_data['connector_id']
+
+        if crest.call_api('POST', 'imconnector.unregister', {'id': connector_id}, config_value):
+            crest.write_to_config(config_value, {'line': '', 'connector_id': ''})

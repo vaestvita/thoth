@@ -81,12 +81,25 @@ def b24_handler():
             return bitrix.connector_activate(config_value, connector_value, line_value)
 
         event_value = request.form.get('event')
-        if event_value and event_value == 'ONIMCONNECTORMESSAGEADD':
-            chat_id = request.form.get('data[MESSAGES][0][im][chat_id]')
-            message_id = request.form.get('data[MESSAGES][0][im][message_id]')
-            chat_message = request.form.get('data[MESSAGES][0][message][text]')
-            bitrix.send_status_delivery(config_value, chat_id, message_id)
-            bitrix.process_chat_message(config_value, chat_id, chat_message)
+        if event_value:
+            if  event_value == 'ONIMCONNECTORMESSAGEADD':
+                chat_id = request.form.get('data[MESSAGES][0][im][chat_id]')
+                message_id = request.form.get('data[MESSAGES][0][im][message_id]')
+                chat_message = request.form.get('data[MESSAGES][0][message][text]')
+                bitrix.send_status_delivery(config_value, chat_id, message_id)
+                bitrix.process_chat_message(config_value, chat_id, chat_message)
+
+            # При отключении коннектора от линии очистка значнеия в конфиге
+            elif event_value == 'ONIMCONNECTORSTATUSDELETE':
+                # line_value = request.form.get('data[line]')
+                # crest.write_to_config(config_value, {'line': ''})
+                pass
+
+            # При удалении линии, удалить коннектор
+            elif event_value == 'ONIMCONNECTORLINEDELETE':
+                line_value = request.form.get('data')
+                bitrix.imconnector_unregister(config_value, line_value)
+                pass                
        
             return 'Success', 200
     return 'Forbidden', 403
@@ -106,28 +119,13 @@ def wba_handler():
         return 'Forbidden', 403
                 
     elif request.method == 'POST':
+        
         config_value = request.args.get('config')
         if config_value and check_config_value(config_value, 'whatsapp'):
-            entry = request.json['entry'][0]
-            changes = entry['changes'][0]['value']
-            if 'contacts' in changes:
-                if changes['messages'][0]['type'] == 'text':
+           response = whatsapp.message_processing(request.json['entry'][0], config_value)
+           return 'Success', 200
+        return 'Forbidden', 403
 
-                    message_params = {
-                        'phone_number_id' : changes['metadata']['phone_number_id'],
-                        'name': changes['contacts'][0]['profile']['name'],
-                        'wa_id': changes['contacts'][0]['wa_id'],
-                        'body': changes['messages'][0]['text']['body']
-                    }
 
-                    response =  bitrix.send_message(config_value, message_params)
-                    print(response)
-                else:
-                    phone = changes['contacts'][0]['wa_id']
-                    message = '( ͡° ͜ʖ ͡°) \nВ этот чат принимаются только текстовые сообщения.'           
-                    whatsapp.send_message(config_value, phone, message)                
-        return "Webhook received!", 200
-    return 'Forbidden', 403
-    
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8000)

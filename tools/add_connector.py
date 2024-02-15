@@ -79,22 +79,38 @@ def main():
     if 'error' in response:
         print("Ошибка при регистрации коннектора:", response)
     elif 'result' in response and 'result' in response['result']:
+
+        get_storage_data = requests.post(f'{client_endpoint}disk.storage.getforapp?auth={access_token}').json()
+        if 'result' in get_storage_data:
+            storage_id = get_storage_data['result']['ID']
+            print('Данные хранилища получены')
+        else:
+            print(f'Ошибка получения данных хранилища {get_storage_data}')
+
         file_data['bitrix']['connector_id'] = connector_id
+        file_data['bitrix']['storage_id'] = storage_id
+
         with open(chosen_file_path, 'w') as file:
             json.dump(file_data, file, indent=4)
         print("Коннектор успешно зарегистрирован.")
+
+        events_to_bind = ['OnImConnectorMessageAdd', 
+                          'OnImConnectorLineDelete', 
+                          'OnImConnectorStatusDelete']
         
-        event_data = {
-            'auth': access_token,
-            'event': 'OnImConnectorMessageAdd',
-            'HANDLER': placement_handler
-        }
-        
-        response = requests.get(f'{client_endpoint}event.bind.json', params=event_data).json()
-        if 'error' in response:
-            print("Ошибка при привязке события:", response)
-        else:
-            print("Событие OnImConnectorMessageAdd успешно привязано.")
+        for event in events_to_bind:        
+            event_data = {
+                'auth': access_token,
+                'event': event,
+                'HANDLER': placement_handler
+            }
+            
+            response = requests.get(f'{client_endpoint}event.bind', params=event_data).json()
+
+            if 'error' in response:
+                print(f"Ошибка при привязке события {event}:", response)
+            else:
+                print(f"Событие {event} успешно привязано.")
     else:
         print("Не удалось обработать ответ сервера.")
 

@@ -160,3 +160,5 @@ cython_debug/
 #.idea/
 
 configs/*.json
+notes.txt
+test.py
