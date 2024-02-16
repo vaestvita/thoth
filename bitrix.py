@@ -1,4 +1,5 @@
 import requests
+import re
 
 import crest, whatsapp
 
@@ -18,15 +19,14 @@ def connector_activate(config_value, connector, line):
         if response.get('result'):
             # Обновление конфигурации
             crest.write_to_config(config_value, {'line': line})
+            return response
         else:
             print("Ошибка при активации коннектора: нет результата в ответе.")
             return response
 
     except Exception as e:
-        print(f"Ошибка при вызове API: {e}")
-        return {"error": str(e)}
-
-    return response
+        print(f"Ошибка при активации коннектора: {e}")
+        return False
 
 
 def send_message(config_value, message_data):
@@ -65,17 +65,16 @@ def send_message(config_value, message_data):
     return crest.call_api('POST', 'imconnector.send.messages', message_data, config_value)
 
 
-def send_status_delivery(config_value, chat_id, message_id):
-    bitrix_data = crest.get_params(config_value, 'bitrix')
+def send_status_delivery(config_value, status_data):
 
     status_data = {
-        'CONNECTOR': bitrix_data['connector_id'],
-        'LINE': bitrix_data['line'],
+        'CONNECTOR': status_data['connector_id'],
+        'LINE': status_data['line_id'],
         'MESSAGES': [
             {
                 'im': {
-                    'chat_id': chat_id,
-                    'message_id': message_id
+                    'chat_id': status_data['chat_id'],
+                    'message_id': status_data['message_id']
                 },
                 'message': {
                     'id': []
@@ -90,24 +89,44 @@ def send_status_delivery(config_value, chat_id, message_id):
     return crest.call_api('POST', 'imconnector.send.status.delivery', status_data, config_value)    
 
 
-def process_chat_message(config_value, chat_id, chat_message):
+def process_chat_message(config_value, message_data):
+    # print(message_data)
     try:
-        bitrix_data = crest.get_params(config_value, 'bitrix')
-        client_endpoint = bitrix_data['client_endpoint']
-        access_token = bitrix_data['access_token']
+        chat_id = message_data.get('data[MESSAGES][0][im][chat_id]')
+        file_type =  message_data.get('data[MESSAGES][0][message][files][0][type]')
+        file_link = message_data.get('data[MESSAGES][0][message][files][0][link]')
+        chat_message = {}
+        if not file_type:
+            chat_message['type'] = 'text'
+            message_text = message_data.get('data[MESSAGES][0][message][text]')
+            text = re.sub(r'\[(?!(br|\n))[^\]]+\]', '', message_text)
+            text = text.replace('[br]', '\n')
+            chat_message['text'] = {'body': text}
+        # elif file_type in ['image', 'video', 'audio']:
+        elif file_type in ['image']:
+            chat_message['type'] = file_type
+            chat_message[file_type] = {'link': file_link}
+        else:
+            chat_message['type'] = 'document'
+            chat_message['document'] = {}
+            chat_message['document']['link'] = file_link
+            chat_message['document']['filename'] = message_data.get('data[MESSAGES][0][message][files][0][name]')
 
-        user_list = requests.get(f'{client_endpoint}im.chat.user.list?auth={access_token}&CHAT_ID={chat_id}').json()
-
-        payload = {
-            'auth': access_token,
-            'ID': user_list['result']
-        }
-
-        get_users_info = requests.post(f'{client_endpoint}im.user.list.get', json=payload).json()
+        user_list = crest.call_api('GET', 'im.chat.user.list', {'CHAT_ID': chat_id}, config_value)
+        get_users_info = crest.call_api('POST', 'im.user.list.get', {'ID': user_list['result']}, config_value)
         personal_mobile = get_personal_mobile(get_users_info['result'])
 
         for mobile in personal_mobile:
-            whatsapp.send_message(config_value, mobile, chat_message)
+            return whatsapp.send_message(config_value, mobile, chat_message)
+        
+        status_data = {
+            'message_id': message_data.get('data[MESSAGES][0][im][message_id]'),
+            'chat_id': chat_id,
+            'connector_id': message_data.get('data[CONNECTOR]'),
+            'line_id': message_data.get('data[LINE]')
+        }
+        
+        return send_status_delivery(config_value, status_data)
 
     except Exception as e:
         return {'error': str(e)}
@@ -135,10 +154,8 @@ def uploadfile(config_value, file_content_base64, filename):
         'data': {'NAME': filename}
     }
 
-    response =  crest.call_api('POST', 'disk.storage.uploadfile', file_data, config_value)
+    return crest.call_api('POST', 'disk.storage.uploadfile', file_data, config_value)
 
-    return response
-    
 
 def imconnector_unregister(config_value, line_value):
     bitrix_data = crest.get_params(config_value, 'bitrix')

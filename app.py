@@ -78,16 +78,15 @@ def b24_handler():
             placement_options = json.loads(request.form.get('PLACEMENT_OPTIONS', '{}'))
             connector_value = placement_options.get('CONNECTOR')
             line_value = placement_options.get('LINE')
-            return bitrix.connector_activate(config_value, connector_value, line_value)
+            response = bitrix.connector_activate(config_value, connector_value, line_value)
+            print('PLACEMENT_OPTIONS', response)
+            return response
 
         event_value = request.form.get('event')
         if event_value:
             if  event_value == 'ONIMCONNECTORMESSAGEADD':
-                chat_id = request.form.get('data[MESSAGES][0][im][chat_id]')
-                message_id = request.form.get('data[MESSAGES][0][im][message_id]')
-                chat_message = request.form.get('data[MESSAGES][0][message][text]')
-                bitrix.send_status_delivery(config_value, chat_id, message_id)
-                bitrix.process_chat_message(config_value, chat_id, chat_message)
+                response = bitrix.process_chat_message(config_value, request.form)
+                print('ONIMCONNECTORMESSAGEADD', response)
 
             # При отключении коннектора от линии очистка значнеия в конфиге
             elif event_value == 'ONIMCONNECTORSTATUSDELETE':
@@ -123,6 +122,7 @@ def wba_handler():
         config_value = request.args.get('config')
         if config_value and check_config_value(config_value, 'whatsapp'):
            response = whatsapp.message_processing(request.json['entry'][0], config_value)
+           print(response)
            return 'Success', 200
         return 'Forbidden', 403
 

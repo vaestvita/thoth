@@ -33,30 +33,18 @@ def message_processing(entry, config_value):
 
             message_params['body'] = format_contacts(contacts)
 
-        elif message_type == 'audio':
-            audio_data = changes['messages'][0]['audio']
-            media_id = audio_data['id']
-            extension = audio_data['mime_type'].split('/')[1].split(';')[0]
-            file_name = f'{media_id}.{extension}'
-            message_params['body'] = 'Аудио файл'
+        elif message_type in ['image', 'video', 'audio', 'document']:
+            media_data = changes['messages'][0][message_type]
+            media_id = media_data['id']
+            if 'filename' in media_data:
+                file_name = media_data['filename']
+            else:
+                extension = media_data['mime_type'].split('/')[1].split(';')[0]
+                file_name = f'{media_id}.{extension}'
+            message_params['body'] = file_name
+            if 'caption' in media_data:
+                message_params['body'] = media_data['caption']
             message_params['file_url'] = get_file_data(config_value, media_id, file_name)
-
-        elif message_type == 'image':
-            image_data = changes['messages'][0]['image']
-            image_id = image_data['id']
-            extension = image_data['mime_type'].split('/')[1].split(';')[0]
-            file_name = f'{image_id}.{extension}'
-            message_params['body'] = 'Изображение'
-            if 'caption' in image_data:
-                message_params['body'] = image_data['caption']
-            message_params['file_url'] = get_file_data(config_value, image_id, file_name)
-
-        elif message_type == 'document':
-            document_data = changes['messages'][0]['document']
-            document_id = document_data['id']
-            file_name = document_data['filename']
-            message_params['body'] = 'Документ'
-            message_params['file_url'] = get_file_data(config_value, document_id, file_name)
 
         else:
             phone = changes['contacts'][0]['wa_id']
@@ -98,25 +86,20 @@ def send_message(config_value, phone, message):
             'Content-Type': 'application/json'
         }
 
-        text = re.sub(r'\[(?!(br|\n))[^\]]+\]', '', message)
-        text = text.replace('[br]', '\n')
-
         message_data = {
-            'messaging_product': 'whatsapp',
             'to': phone,
-            'type': 'text',
+            'messaging_product': 'whatsapp',
             'recipient_type': 'individual',
-            'text': {
-                'preview_url': 'false',
-                'body': text
-            }
+            'type': message['type'],
+            **message
         }
 
-        return requests.post(f'https://graph.facebook.com/v19.0/{phone_number_id}/messages', 
-                                 headers=headers, json=message_data).json()
+        response = requests.post(f'https://graph.facebook.com/v19.0/{phone_number_id}/messages', 
+                                 headers=headers, json=message_data)
+        return response.status_code, response.json()
 
     except Exception as e:
-        return {'error': str(e)}
+        return 500, {'error': str(e)}
     
 
 def get_file_data(config_value, media_id, filename):

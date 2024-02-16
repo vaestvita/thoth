@@ -20,15 +20,21 @@ def create_config_file(domain_name, config_name, bitrix24_domain):
         os.makedirs(config_folder)
     
     config_data = {
-        'system': {'config_name': config_name, 
-                   'domain_name': domain_name, 
-                   'config_key': config_file, 
-                   'bitrix24_domain': bitrix24_domain},
-        'bitrix': {'client_id': '', 'client_secret': '', 
-                   'handler': f'{domain_name}/bitrix?config={config_file}'},
-        'whatsapp': {'verify_token': generate_random_string(25), 
-                     'access_token': '',
-                     'phone_number_id': ''}
+        'system': {
+            'config_name': config_name, 
+            'domain_name': domain_name, 
+            'config_key': config_file, 
+            'bitrix24_domain': bitrix24_domain
+            },
+        'bitrix': {
+            'client_id': '', 'client_secret': '', 
+            'handler': f'{domain_name}/bitrix?config={config_file}',
+                   },
+        'whatsapp': {
+            'verify_token': generate_random_string(25), 
+            'access_token': '',
+            'phone_number_id': ''
+            }
     }
     
     with open(config_path, 'w') as configfile:

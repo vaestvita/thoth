@@ -74,6 +74,26 @@ def main():
         'PLACEMENT_HANDLER': placement_handler
     }
 
+    # ПРоверка и подписка
+    events_to_bind = ['OnImConnectorMessageAdd', 
+                        'OnImConnectorLineDelete', 
+                        'OnImConnectorStatusDelete']
+    
+    # Получение списка уже зарегистрированных событий
+    get_events_response = requests.get(f'{client_endpoint}event.get', params={'auth': access_token}).json()
+
+    # Проверка полученного ответа на наличие зарегистрированных событий
+    if 'result' in get_events_response:
+        registered_events = {event['event'].upper(): event['handler'] for event in get_events_response['result']}
+    else:
+        registered_events = {}
+
+    for event in events_to_bind:
+        event_upper = event.upper()  # Приведение к верхнему регистру для совместимости
+        if event_upper in registered_events and registered_events[event_upper] == placement_handler:
+            print(f"Событие {event} уже зарегистрировано с handler {placement_handler}.")
+            continue
+
     response = requests.post(f'{client_endpoint}imconnector.register', json=imconnector_data).json()
     
     if 'error' in response:
@@ -94,11 +114,8 @@ def main():
             json.dump(file_data, file, indent=4)
         print("Коннектор успешно зарегистрирован.")
 
-        events_to_bind = ['OnImConnectorMessageAdd', 
-                          'OnImConnectorLineDelete', 
-                          'OnImConnectorStatusDelete']
-        
-        for event in events_to_bind:        
+        # Привязка события, если оно не зарегистрировано или handler не совпадает
+        for event in events_to_bind:
             event_data = {
                 'auth': access_token,
                 'event': event,
