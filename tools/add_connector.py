@@ -62,7 +62,7 @@ def main():
     encoded_image = base64.b64encode(image_data).decode('utf-8')
     data_image = f"data:image/svg+xml;base64,{encoded_image}"
     
-    connector_id = f"{file_data['system']['config_name']}_{''.join(random.choices(string.ascii_letters + string.digits, k=5))}"
+    connector_id = f"{file_data['system']['config_name']}_{''.join(random.choices(string.ascii_letters + string.digits, k=5))}".lower()
     
     imconnector_data = {
         'auth': access_token,
@@ -74,60 +74,58 @@ def main():
         'PLACEMENT_HANDLER': placement_handler
     }
 
-    # ПРоверка и подписка
-    events_to_bind = ['OnImConnectorMessageAdd', 
-                        'OnImConnectorLineDelete', 
-                        'OnImConnectorStatusDelete']
-    
-    # Получение списка уже зарегистрированных событий
-    get_events_response = requests.get(f'{client_endpoint}event.get', params={'auth': access_token}).json()
-
-    # Проверка полученного ответа на наличие зарегистрированных событий
-    if 'result' in get_events_response:
-        registered_events = {event['event'].upper(): event['handler'] for event in get_events_response['result']}
-    else:
-        registered_events = {}
-
-    for event in events_to_bind:
-        event_upper = event.upper()  # Приведение к верхнему регистру для совместимости
-        if event_upper in registered_events and registered_events[event_upper] == placement_handler:
-            print(f"Событие {event} уже зарегистрировано с handler {placement_handler}.")
-            continue
-
     response = requests.post(f'{client_endpoint}imconnector.register', json=imconnector_data).json()
-    
+
     if 'error' in response:
         print("Ошибка при регистрации коннектора:", response)
     elif 'result' in response and 'result' in response['result']:
 
-        get_storage_data = requests.post(f'{client_endpoint}disk.storage.getforapp?auth={access_token}').json()
-        if 'result' in get_storage_data:
-            storage_id = get_storage_data['result']['ID']
-            print('Данные хранилища получены')
-        else:
-            print(f'Ошибка получения данных хранилища {get_storage_data}')
-
-        file_data['bitrix']['connector_id'] = connector_id
-        file_data['bitrix']['storage_id'] = storage_id
+        if 'connectors' not in file_data['bitrix']:
+            file_data['bitrix']['connectors'] = []
+        if not any(connector.get('connector_id') == connector_id for connector in file_data['bitrix']['connectors']):
+            file_data['bitrix']['connectors'].append({'connector_id': connector_id})
 
         with open(chosen_file_path, 'w') as file:
             json.dump(file_data, file, indent=4)
         print("Коннектор успешно зарегистрирован.")
 
-        # Привязка события, если оно не зарегистрировано или handler не совпадает
+        # Проверка и подписка
+        events_to_bind = ['OnImConnectorMessageAdd', 
+                        'OnImConnectorLineDelete', 
+                        'OnImConnectorStatusDelete']
+
+        # Получение списка уже зарегистрированных событий
+        get_events_response = requests.get(f'{client_endpoint}event.get', params={'auth': access_token}).json()
+
+        # Предполагаем, что 'result' в get_events_response содержит список словарей с событиями и хендлерами
+        if 'result' in get_events_response:
+            # Создаем словарь, где ключи — названия событий, а значения — URL-адреса хендлеров
+            registered_events = {event['event'].upper(): event['handler'] for event in get_events_response['result']}
+        else:
+            registered_events = {}
+
         for event in events_to_bind:
+            event_upper = event.upper()
             event_data = {
                 'auth': access_token,
                 'event': event,
                 'HANDLER': placement_handler
             }
             
-            response = requests.get(f'{client_endpoint}event.bind', params=event_data).json()
+            # Проверяем, зарегистрировано ли событие и совпадает ли хендлер
+            if event_upper in registered_events and registered_events[event_upper] == placement_handler:
+                print(f"Событие {event} уже зарегистрировано с handler {placement_handler}.")
+                continue
 
+            # Перерегистрация события с новым хендлером или привязка нового события
+            response = requests.get(f'{client_endpoint}event.bind', params=event_data).json()
+            
             if 'error' in response:
                 print(f"Ошибка при привязке события {event}:", response)
             else:
-                print(f"Событие {event} успешно привязано.")
+                message = "Событие успешно привязано." if event_upper not in registered_events else "Событие на новый handler."
+                print(f"{message} {event} с handler {placement_handler}.")
+
     else:
         print("Не удалось обработать ответ сервера.")
 

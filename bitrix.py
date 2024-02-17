@@ -4,65 +4,74 @@ import re
 import crest, whatsapp
 
 
-def connector_activate(config_value, connector, line):
-
-    connection_data = {
-        'CONNECTOR': connector,
-        'LINE': line,
-        'ACTIVE': 1
-    }
-
-    try:
-        response = crest.call_api('POST', 'imconnector.activate', connection_data, config_value)
-
-        # Проверка успешности ответа
-        if response.get('result'):
-            # Обновление конфигурации
-            crest.write_to_config(config_value, {'line': line})
-            return response
-        else:
-            print("Ошибка при активации коннектора: нет результата в ответе.")
-            return response
-
-    except Exception as e:
-        print(f"Ошибка при активации коннектора: {e}")
-        return False
-
-
-def send_message(config_value, message_data):
+def connector_activate(config_value, placement_options):
+    connector_value = placement_options.get('CONNECTOR')
+    line_value = placement_options.get('LINE')
     bitrix_data = crest.get_params(config_value, 'bitrix')
+    connectors = bitrix_data['connectors']
 
+    # Поиск коннектора
+    for connector_data in connectors:
+        if connector_data['connector_id'] == connector_value:
+            # Проверяем наличие списка lines и наличие line_value в нем
+            if 'lines' in connector_data and line_value in connector_data['lines']:
+                return {'error': f"Connector {connector_value} is already connected to line {line_value}."}
+            
+            # Если line_value отсутствует, активируем коннектор для новой линии
+            connection_data = {
+                'CONNECTOR': connector_value,
+                'LINE': line_value,
+                'ACTIVE': 1
+            }
+            response = crest.call_api('POST', 'imconnector.activate', connection_data, config_value)
+            
+            if 'result' in response:
+                # Добавляем line_value в список lines
+                if 'lines' not in connector_data:
+                    connector_data['lines'] = []
+                connector_data['lines'].append(line_value)
+
+                # Сохраняем обновленные данные конфигурации
+                crest.write_to_config(config_value, {'connectors': connectors}, 'bitrix')
+                return {'Success': f"{connector_value} connected to line {line_value}."}
+            return response
+    else:
+        # Если коннектор не найден, возвращаем ошибку
+        return {'error': f"Connector {connector_value} not found in the list."}
+
+
+def send_message(config_value, message_params):
     # Инициализация списка файлов
     files = []
     
     # Проверка наличия ключа 'file_url' в полученных данных
-    if 'file_url' in message_data:
+    if 'file_url' in message_params:
         # Добавление URL файла в список файлов
-        files.append({'url': message_data['file_url']})
+        files.append({'url': message_params['file_url']})
 
     message_data = {
-        'CONNECTOR': bitrix_data['connector_id'],
-        'LINE': bitrix_data['line'],
+        'CONNECTOR': message_params['b24_connector'],
+        'LINE': message_params['b24_line'],
         'MESSAGES': [
             {
                 'user': {
-                    'id': message_data['wa_id'],
-                    'last_name': message_data['name'],
-                    'phone': message_data['wa_id'],
+                    'id': message_params['wa_id'],
+                    'last_name': message_params['name'],
+                    'phone': message_params['wa_id'],
                     'skip_phone_validate': 'Y'
                 },
                 'message': {
-                    'text': message_data['body'],
+                    'text': message_params['body'],
                     'files': files
                 },
                 'chat': {
-                    'url': f"https://web.whatsapp.com/send/?phone={message_data['wa_id']}"
+                    'url': f"https://web.whatsapp.com/send/?phone={message_params['wa_id']}"
                 }
             }
         ]
     }
 
-    return crest.call_api('POST', 'imconnector.send.messages', message_data, config_value)
+    response =  crest.call_api('POST', 'imconnector.send.messages', message_data, config_value)
 
 
 def send_status_delivery(config_value, status_data):
@@ -90,46 +99,66 @@ def send_status_delivery(config_value, status_data):
 
 
 def process_chat_message(config_value, message_data):
-    # print(message_data)
     try:
-        chat_id = message_data.get('data[MESSAGES][0][im][chat_id]')
-        file_type =  message_data.get('data[MESSAGES][0][message][files][0][type]')
-        file_link = message_data.get('data[MESSAGES][0][message][files][0][link]')
-        chat_message = {}
-        if not file_type:
-            chat_message['type'] = 'text'
-            message_text = message_data.get('data[MESSAGES][0][message][text]')
-            text = re.sub(r'\[(?!(br|\n))[^\]]+\]', '', message_text)
-            text = text.replace('[br]', '\n')
-            chat_message['text'] = {'body': text}
-        # elif file_type in ['image', 'video', 'audio']:
-        elif file_type in ['image']:
-            chat_message['type'] = file_type
-            chat_message[file_type] = {'link': file_link}
-        else:
-            chat_message['type'] = 'document'
-            chat_message['document'] = {}
-            chat_message['document']['link'] = file_link
-            chat_message['document']['filename'] = message_data.get('data[MESSAGES][0][message][files][0][name]')
+        connector_id = message_data.get('data[CONNECTOR]')
+        line_id = message_data.get('data[LINE]')
+        # Определяем мессенджер для маршрутизации
+        messenger = find_messenger(config_value, connector_id, line_id)
+        if messenger:
+            if messenger == 'whatsapp':
+                chat_id = message_data.get('data[MESSAGES][0][im][chat_id]')
+                file_type =  message_data.get('data[MESSAGES][0][message][files][0][type]')
+                file_link = message_data.get('data[MESSAGES][0][message][files][0][link]')
+                chat_message = {}
+                if not file_type:
+                    chat_message['type'] = 'text'
+                    message_text = message_data.get('data[MESSAGES][0][message][text]')
+                    text = re.sub(r'\[(?!(br|\n))[^\]]+\]', '', message_text)
+                    text = text.replace('[br]', '\n')
+                    chat_message['text'] = {'body': text}
+                # elif file_type in ['image', 'video', 'audio']:
+                elif file_type in ['image']:
+                    chat_message['type'] = file_type
+                    chat_message[file_type] = {'link': file_link}
+                else:
+                    chat_message['type'] = 'document'
+                    chat_message['document'] = {}
+                    chat_message['document']['link'] = file_link
+                    chat_message['document']['filename'] = message_data.get('data[MESSAGES][0][message][files][0][name]')
 
-        user_list = crest.call_api('GET', 'im.chat.user.list', {'CHAT_ID': chat_id}, config_value)
-        get_users_info = crest.call_api('POST', 'im.user.list.get', {'ID': user_list['result']}, config_value)
-        personal_mobile = get_personal_mobile(get_users_info['result'])
+                user_list = crest.call_api('GET', 'im.chat.user.list', {'CHAT_ID': chat_id}, config_value)
+                get_users_info = crest.call_api('POST', 'im.user.list.get', {'ID': user_list['result']}, config_value)
+                personal_mobile = get_personal_mobile(get_users_info['result'])
 
-        for mobile in personal_mobile:
-            return whatsapp.send_message(config_value, mobile, chat_message)
+                connector_data = {
+                    'connector_id': connector_id,
+                    'line_id': line_id
+                }
+                response =  whatsapp.send_message(config_value, personal_mobile, chat_message, connector_data)
         
         status_data = {
             'message_id': message_data.get('data[MESSAGES][0][im][message_id]'),
             'chat_id': chat_id,
-            'connector_id': message_data.get('data[CONNECTOR]'),
-            'line_id': message_data.get('data[LINE]')
+            'connector_id': connector_id,
+            'line_id': line_id
         }
-        
+
         return send_status_delivery(config_value, status_data)
 
     except Exception as e:
+        print('error', str(e))
         return {'error': str(e)}
+
+
+def find_messenger(config_value, connector_id, line_id):
+    messengers = crest.get_params(config_value, 'messengers')
+    # Перебор всех мессенджеров в конфигурации
+    for messenger_name, messenger_data in messengers.items():
+        # Проверка каждой записи в списке мессенджера на совпадение с connector_id и line_id
+        for entry in messenger_data:
+            if entry.get('connector_id') == connector_id and str(entry.get('line_id')) == str(line_id):
+                return messenger_name
+    return False
 
 
 def get_personal_mobile(users):
@@ -143,11 +172,8 @@ def get_personal_mobile(users):
     return personal_mobiles
 
 
-
 def uploadfile(config_value, file_content_base64, filename):
-
     bitrix_data = crest.get_params(config_value, 'bitrix')
-
     file_data = {
         'id': bitrix_data['storage_id'], 
         'fileContent': file_content_base64,
@@ -157,10 +183,36 @@ def uploadfile(config_value, file_content_base64, filename):
     return crest.call_api('POST', 'disk.storage.uploadfile', file_data, config_value)
 
 
-def imconnector_unregister(config_value, line_value):
-    bitrix_data = crest.get_params(config_value, 'bitrix')
-    if bitrix_data['line'] == line_value:
-        connector_id = bitrix_data['connector_id']
+def get_storage(config_value):
+    get_storage_data = crest.call_api('POST', 'disk.storage.getforapp', {}, config_value)
+    if 'result' in get_storage_data:
+        storage_id = get_storage_data['result']['ID']
+        crest.write_to_config(config_value, {'storage_id': storage_id}, 'bitrix')
+    else:
+        print(f'Ошибка получения данных хранилища {get_storage_data}')
 
-        if crest.call_api('POST', 'imconnector.unregister', {'id': connector_id}, config_value):
-            crest.write_to_config(config_value, {'line': '', 'connector_id': ''})
+
+def line_disconnection(config_value, event_data):
+    bitrix_data = crest.get_params(config_value, 'bitrix')
+    event_value = event_data.get('event')
+    line_value = event_data.get('data[line]')
+    connector_value = event_data.get('data[connector]')
+    connectors = bitrix_data['connectors']
+    
+    if event_value == 'ONIMCONNECTORSTATUSDELETE':
+        # Удаляем line_value только из конкретного коннектора
+        for connector in connectors:
+            if connector['connector_id'] == connector_value and 'lines' in connector:
+                if line_value in connector['lines']:
+                    connector['lines'].remove(line_value)
+                    print(f"Line {line_value} disconnected from connector {connector_value}.")
+    
+    elif event_value == 'ONIMCONNECTORLINEDELETE':
+        # Удаляем line_value из всех коннекторов
+        for connector in connectors:
+            if 'lines' in connector and line_value in connector['lines']:
+                connector['lines'].remove(line_value)
+                print(f"Line {line_value} disconnected from all connectors.")
+
+    # Сохранение обновленных данных конфигурации
+    crest.write_to_config(config_value, {'connectors': connectors}, 'bitrix')

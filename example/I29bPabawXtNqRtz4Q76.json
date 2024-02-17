@@ -1,0 +1,48 @@
+{
+    "system": {
+        "config_name": "my_project",
+        "domain_name": "https://app.thoth.kz",
+        "config_key": "I29bPabawXtNqRtz4Q76",
+        "bitrix24_domain": "b24-XXXX.bitrix24.ru"
+    },
+    "bitrix": {
+        "client_id": "local.65d0b8.18233975",
+        "client_secret": "ik0iManV7E80iLCobjASMlqq1fACsG",
+        "handler": "https://app.thoth.kz/bitrix?config=I29bPabawXtNqRtz4Q76",
+        "member_id": "4a6e95f83048639795e8c47c236a6635",
+        "access_token": "08c7d065006995c6790bb4bafca647",
+        "refresh_token": "f845f865006b152fd834ef9d22ea2",
+        "client_endpoint": "https://b24-XXXX.bitrix24.ru/rest/",
+        "server_endpoint": "https://oauth.bitrix.info/rest/",
+        "application_token": "1ea70a9846d18f076b1b76",
+        "scope": "crm,imopenlines,contact_center,user,disk,im,imconnector",
+        "status": "L",
+        "storage_id": 52,
+        "connectors": [
+            {
+                "connector_id": "my_project_h5ec5",
+                "lines": [
+                    "2"
+                ]
+            },
+            {
+                "connector_id": "my_project_9zuwd",
+                "lines": [
+                    "2",
+                    "12"
+                ]
+            }
+        ]
+    },
+    "messengers": {
+        "whatsapp": [
+            {
+                "phone_id": "22033453534171289",
+                "connector_id": "my_project_9zuwd",
+                "line_id": "12",
+                "access_token": "EAAWyRIMXICEBOwwwCkgzVvtJXubCFkH2XZC1OduncRBnaVVCN7TKurQuJDa",
+                "verify_token": "KF8hQQpQBfQPee572vnitNUjd"
+            }
+        ]
+    }
+}

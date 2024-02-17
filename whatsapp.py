@@ -1,57 +1,85 @@
 import requests
-import re
 import base64
 
 import crest, bitrix
 
 
 def webhook_subscribe(config_value, received_token):
-    whatsapp_data = crest.get_params(config_value, 'whatsapp')
-    if received_token == whatsapp_data['verify_token']:
-        return True
-    else:
-        return False
+    messengers_data = crest.get_params(config_value, 'messengers')
+    whatsapp_data = messengers_data['whatsapp']
     
+    for entry in whatsapp_data:
+        if 'verify_token' in entry and entry['verify_token'] == received_token:
+            return True
+    return False
+
+
+def message_route(config_value, phone_number_id):
+    messengers_data = crest.get_params(config_value, 'messengers')
+    whatsapp_data = messengers_data['whatsapp']
+    
+    # Итерация по списку данных whatsapp
+    for entry in whatsapp_data:
+        # Проверка наличия и соответствия phone_number_id
+        if entry.get('phone_id') == phone_number_id:
+            # Возврат значений connector_id и line_id для найденного phone_number_id
+            return entry['connector_id'], entry['line_id']
+    
+    # Возврат None, если phone_number_id не найден
+    return None, None
+
 
 def message_processing(entry, config_value):
-
     changes = entry['changes'][0]['value']
     if 'contacts' in changes:
-        message_type = changes['messages'][0]['type']
+        phone_number_id = changes['metadata']['phone_number_id']
+        connector_id, line_id = message_route(config_value, phone_number_id)
+        connector_data = {
+            'connector_id': connector_id,
+            'line_id': line_id
+        }       
+        if connector_id and line_id:
+            message_type = changes['messages'][0]['type']
 
-        message_params = {
-            'phone_number_id' : changes['metadata']['phone_number_id'],
-            'name': changes['contacts'][0]['profile']['name'],
-            'wa_id': changes['contacts'][0]['wa_id'],
-        }
+            message_params = {
+                'b24_connector': connector_id,
+                'b24_line': line_id,
+                'phone_number_id' : phone_number_id,
+                'name': changes['contacts'][0]['profile']['name'],
+                'wa_id': changes['contacts'][0]['wa_id'],
+            }
 
-        if message_type == 'text':
-            message_params['body'] = changes['messages'][0]['text']['body']
+            if message_type == 'text':
+                message_params['body'] = changes['messages'][0]['text']['body']
 
-        elif message_type == 'contacts':
-            contacts = changes['messages'][0]['contacts']
+            elif message_type == 'contacts':
+                contacts = changes['messages'][0]['contacts']
 
-            message_params['body'] = format_contacts(contacts)
+                message_params['body'] = format_contacts(contacts)
 
-        elif message_type in ['image', 'video', 'audio', 'document']:
-            media_data = changes['messages'][0][message_type]
-            media_id = media_data['id']
-            if 'filename' in media_data:
-                file_name = media_data['filename']
+            elif message_type in ['image', 'video', 'audio', 'document']:
+                media_data = changes['messages'][0][message_type]
+                media_id = media_data['id']
+                if 'filename' in media_data:
+                    file_name = media_data['filename']
+                else:
+                    extension = media_data['mime_type'].split('/')[1].split(';')[0]
+                    file_name = f'{media_id}.{extension}'
+                message_params['body'] = file_name
+                if 'caption' in media_data:
+                    message_params['body'] = media_data['caption']
+                message_params['file_url'] = get_file_data(config_value, media_id, file_name, connector_data)
+
             else:
-                extension = media_data['mime_type'].split('/')[1].split(';')[0]
-                file_name = f'{media_id}.{extension}'
-            message_params['body'] = file_name
-            if 'caption' in media_data:
-                message_params['body'] = media_data['caption']
-            message_params['file_url'] = get_file_data(config_value, media_id, file_name)
+                phone = changes['contacts'][0]['wa_id']
+                message = {}
+                message['type'] = 'text'
+                message['text'] = {'body': '( ͡° ͜ʖ ͡°) \nЭтот тип сообщений не принимается.'}
+                response = send_message(config_value, [phone], message, connector_data)
+                print('RESPONSE', response)
+                return response
 
-        else:
-            phone = changes['contacts'][0]['wa_id']
-            message = '( ͡° ͜ʖ ͡°) \nЭтот тип сообщений не принимается.'           
-            return send_message(config_value, phone, message)
-
-        return bitrix.send_message(config_value, message_params)
+            return bitrix.send_message(config_value, message_params)
     
     else:
         return 'Success', 200
@@ -75,39 +103,52 @@ def format_contacts(contacts):
     return contact_text
 
 
-def send_message(config_value, phone, message):
+def send_message(config_value, personal_mobile, message, connector_data):
     try:
-        whatsapp_data = crest.get_params(config_value, 'whatsapp')        
-        phone_number_id = whatsapp_data['phone_number_id']
-        access_token = whatsapp_data['access_token']
+        messengers = crest.get_params(config_value, 'messengers')
+        all_whatsapp = messengers['whatsapp']
+        current_whatsapp = get_whatsapp(all_whatsapp, connector_data['connector_id'], connector_data['line_id'])
+        phone_id = current_whatsapp['phone_id']
 
         headers = {
-            'Authorization': f'Bearer {access_token}',
+            'Authorization': f'Bearer {current_whatsapp['access_token']}',
             'Content-Type': 'application/json'
         }
 
-        message_data = {
-            'to': phone,
-            'messaging_product': 'whatsapp',
-            'recipient_type': 'individual',
-            'type': message['type'],
-            **message
-        }
+        for mobile in personal_mobile:
+            message_data = {
+                'to': mobile,
+                'messaging_product': 'whatsapp',
+                'recipient_type': 'individual',
+                'type': message['type'],
+                **message
+            }
 
-        response = requests.post(f'https://graph.facebook.com/v19.0/{phone_number_id}/messages', 
-                                 headers=headers, json=message_data)
-        return response.status_code, response.json()
+            response = requests.post(f'https://graph.facebook.com/v19.0/{phone_id}/messages', 
+                                    headers=headers, json=message_data)
+            return response.status_code, response.json()
 
     except Exception as e:
         return 500, {'error': str(e)}
-    
 
-def get_file_data(config_value, media_id, filename):
-    whatsapp_data = crest.get_params(config_value, 'whatsapp')
-    access_token = whatsapp_data['access_token']
+
+def get_whatsapp(whatsapp_data, connector_id, line_id):
+    for entry in whatsapp_data:
+        if entry.get('connector_id') == connector_id and str(entry.get('line_id')) == str(line_id):
+            return {
+                'phone_id': entry.get('phone_id'),
+                'access_token': entry.get('access_token')
+            }
+    return None
+
+
+def get_file_data(config_value, media_id, filename, connector_data):
+    messengers = crest.get_params(config_value, 'messengers')
+    all_whatsapp = messengers['whatsapp']
+    current_whatsapp = get_whatsapp(all_whatsapp, connector_data['connector_id'], connector_data['line_id'])
 
     headers = {
-    'Authorization': f'Bearer {access_token}',
+    'Authorization': f'Bearer {current_whatsapp['access_token']}',
     'Content-Type': 'application/json'
         }
     
@@ -123,8 +164,9 @@ def download_file(config_value, media_url, filename, headers):
     if response.status_code == 200:
         file_content_base64 = base64.b64encode(response.content).decode('utf-8')
         response = bitrix.uploadfile(config_value, file_content_base64, filename)
-        
-        file_url = response['result']['DOWNLOAD_URL']
-
-        return file_url
+        if 'result' in response:      
+            file_url = response['result']['DOWNLOAD_URL']
+            return file_url
+        else:
+            print('error', response)
         

@@ -4,25 +4,39 @@ import json
 import requests
 
 
-def write_to_config(config_value, app_data):
+def write_to_config(config_value, app_data, section=None):
     config_path = os.path.join('configs', f"{config_value}.json")
     if os.path.exists(config_path) and config_value != 'config':
-        with open(config_path, 'r') as configfile:
+        with open(config_path, 'r+') as configfile:
             config_data = json.load(configfile)
-            config_data['bitrix'].update(app_data)  # Обновление данных в секции bitrix
-        with open(config_path, 'w') as configfile:
-            json.dump(config_data, configfile, indent=4)  # Запись обновленных данных в файл
+
+            if section and section in config_data:
+                # Обновляем или добавляем данные в указанной секции
+                section_data = config_data[section]
+                for key, value in app_data.items():
+                    section_data[key] = value  # Заменяем или добавляем ключ в секции
+            else:
+                # Если секция не указана или не найдена, обновляем или добавляем на верхнем уровне
+                for key, value in app_data.items():
+                    config_data[key] = value
+
+            # Перезаписываем обновленный конфиг обратно в файл
+            configfile.seek(0)
+            json.dump(config_data, configfile, indent=4)
+            configfile.truncate()
+
         return True
-    return False
+    else:
+        return False
 
 
-def get_params(config_value, service):
+def get_params(config_value, section):
     config_path = os.path.join('configs', f"{config_value}.json")
     if os.path.exists(config_path):
         with open(config_path, 'r') as configfile:
             config_data = json.load(configfile)
-            if service in config_data:
-                return config_data[service]
+            if section in config_data:
+                return config_data[section]
     return None
 
 
@@ -47,7 +61,7 @@ def get_new_token(config_name):
             refresh_token = token_data['refresh_token']
 
             # Обновляем данные в файле конфигурации
-            write_to_config(config_name, {'access_token': access_token, 'refresh_token': refresh_token})
+            write_to_config(config_name, {'access_token': access_token, 'refresh_token': refresh_token}, 'bitrix')
             return access_token, refresh_token
         else:
             print("Не удалось получить новый токен.", token_data)

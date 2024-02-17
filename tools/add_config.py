@@ -28,18 +28,14 @@ def create_config_file(domain_name, config_name, bitrix24_domain):
             },
         'bitrix': {
             'client_id': '', 'client_secret': '', 
-            'handler': f'{domain_name}/bitrix?config={config_file}',
-                   },
-        'whatsapp': {
-            'verify_token': generate_random_string(25), 
-            'access_token': '',
-            'phone_number_id': ''
-            }
-    }
+            'handler': f'{domain_name}/bitrix?config={config_file}'
+            },
+        'messengers': {}
+        }
     
     with open(config_path, 'w') as configfile:
-        json.dump(config_data, configfile, indent=4) 
-    return config_file, config_data['whatsapp']['verify_token']
+        json.dump(config_data, configfile, indent=4)
+    return config_file
 
 def main():
     config_name = input("Введите название конфигурации (my_project): ")
@@ -47,13 +43,11 @@ def main():
     domain_name = input("Введите домен сервера, где будет расположен скрипт (domain.ru): ")
     domain_name = 'https://' + domain_name if not domain_name.startswith('https://') else domain_name
     
-    config_file, verify_token = create_config_file(domain_name, config_name, bitrix24_domain)
+    config_file = create_config_file(domain_name, config_name, bitrix24_domain)
     
     print("Базовая конфигурация сохранена. Данные для регистрации приложения:")
     print(f"1. Битрикс24. Путь вашего обработчика: {domain_name}/bitrix?config={config_file}")
     print(f"2. Битрикс24. Путь для первоначальной установки: {domain_name}/install?config={config_file}")
-    print(f"3. Whatsapp. URL обратного вызова: {domain_name}/whatsapp?config={config_file}")
-    print(f"4. Whatsapp. Подтверждение маркера: {verify_token}")
 
 if __name__ == "__main__":
     main()
