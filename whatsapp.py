@@ -107,9 +107,10 @@ def send_message(config_data, personal_mobile, message, connector_data):
         all_whatsapp = config_data['messengers']['whatsapp']
         current_whatsapp = get_whatsapp(all_whatsapp, connector_data['connector_id'], connector_data['line_id'])
         phone_id = current_whatsapp['phone_id']
+        access_token = current_whatsapp['access_token']
 
         headers = {
-            'Authorization': f'Bearer {current_whatsapp['access_token']}',
+            'Authorization': f'Bearer {access_token}',
             'Content-Type': 'application/json'
         }
 
@@ -143,9 +144,10 @@ def get_whatsapp(whatsapp_data, connector_id, line_id):
 def get_file_data(config_data, media_id, filename, connector_data):
     all_whatsapp = config_data['messengers']['whatsapp']
     current_whatsapp = get_whatsapp(all_whatsapp, connector_data['connector_id'], connector_data['line_id'])
+    access_token = current_whatsapp['access_token']
 
     headers = {
-    'Authorization': f'Bearer {current_whatsapp['access_token']}',
+    'Authorization': f'Bearer {access_token}',
     'Content-Type': 'application/json'
         }
     

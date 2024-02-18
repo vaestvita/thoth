@@ -163,3 +163,4 @@ configs/*.json
 notes.txt
 test.py
 .vscode/*
+test/*
