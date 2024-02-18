@@ -23,11 +23,13 @@ def create_config_file(domain_name, config_name, bitrix24_domain):
         'system': {
             'config_name': config_name, 
             'domain_name': domain_name, 
-            'config_key': config_file, 
-            'bitrix24_domain': bitrix24_domain
+            'config_key': config_file
             },
         'bitrix': {
-            'client_id': '', 'client_secret': '', 
+            'client_id': '', 
+            'client_secret': '', 
+            'config_key': config_file,
+            'bitrix24_domain': bitrix24_domain,
             'handler': f'{domain_name}/bitrix?config={config_file}'
             },
         'messengers': {}

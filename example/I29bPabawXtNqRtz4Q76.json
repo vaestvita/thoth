@@ -2,10 +2,11 @@
     "system": {
         "config_name": "my_project",
         "domain_name": "https://app.thoth.kz",
-        "config_key": "I29bPabawXtNqRtz4Q76",
-        "bitrix24_domain": "b24-XXXX.bitrix24.ru"
+        "config_key": "I29bPabawXtNqRtz4Q76"
     },
     "bitrix": {
+        "config_key": "I29bPabawXtNqRtz4Q76",
+        "bitrix24_domain": "b24-XXXX.bitrix24.ru",
         "client_id": "local.65d0b8.18233975",
         "client_secret": "ik0iManV7E80iLCobjASMlqq1fACsG",
         "handler": "https://app.thoth.kz/bitrix?config=I29bPabawXtNqRtz4Q76",

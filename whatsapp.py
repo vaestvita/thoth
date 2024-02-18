@@ -1,12 +1,11 @@
 import requests
 import base64
 
-import crest, bitrix
+import bitrix
 
 
-def webhook_subscribe(config_value, received_token):
-    messengers_data = crest.get_params(config_value, 'messengers')
-    whatsapp_data = messengers_data['whatsapp']
+def webhook_subscribe(config_data, received_token):
+    whatsapp_data = config_data['messengers']['whatsapp']
     
     for entry in whatsapp_data:
         if 'verify_token' in entry and entry['verify_token'] == received_token:
@@ -14,9 +13,8 @@ def webhook_subscribe(config_value, received_token):
     return False
 
 
-def message_route(config_value, phone_number_id):
-    messengers_data = crest.get_params(config_value, 'messengers')
-    whatsapp_data = messengers_data['whatsapp']
+def message_route(config_data, phone_number_id):
+    whatsapp_data = config_data['messengers']['whatsapp']
     
     # Итерация по списку данных whatsapp
     for entry in whatsapp_data:
@@ -29,11 +27,11 @@ def message_route(config_value, phone_number_id):
     return None, None
 
 
-def message_processing(entry, config_value):
+def message_processing(entry, config_data):
     changes = entry['changes'][0]['value']
     if 'contacts' in changes:
         phone_number_id = changes['metadata']['phone_number_id']
-        connector_id, line_id = message_route(config_value, phone_number_id)
+        connector_id, line_id = message_route(config_data, phone_number_id)
         connector_data = {
             'connector_id': connector_id,
             'line_id': line_id
@@ -68,18 +66,19 @@ def message_processing(entry, config_value):
                 message_params['body'] = file_name
                 if 'caption' in media_data:
                     message_params['body'] = media_data['caption']
-                message_params['file_url'] = get_file_data(config_value, media_id, file_name, connector_data)
+
+                message_params['file_url'] = get_file_data(config_data, media_id, file_name, connector_data)
 
             else:
                 phone = changes['contacts'][0]['wa_id']
                 message = {}
                 message['type'] = 'text'
                 message['text'] = {'body': '( ͡° ͜ʖ ͡°) \nЭтот тип сообщений не принимается.'}
-                response = send_message(config_value, [phone], message, connector_data)
+                response = send_message(config_data, [phone], message, connector_data)
                 print('RESPONSE', response)
                 return response
 
-            return bitrix.send_message(config_value, message_params)
+            return bitrix.send_message(config_data, message_params)
     
     else:
         return 'Success', 200
@@ -103,10 +102,9 @@ def format_contacts(contacts):
     return contact_text
 
 
-def send_message(config_value, personal_mobile, message, connector_data):
+def send_message(config_data, personal_mobile, message, connector_data):
     try:
-        messengers = crest.get_params(config_value, 'messengers')
-        all_whatsapp = messengers['whatsapp']
+        all_whatsapp = config_data['messengers']['whatsapp']
         current_whatsapp = get_whatsapp(all_whatsapp, connector_data['connector_id'], connector_data['line_id'])
         phone_id = current_whatsapp['phone_id']
 
@@ -142,9 +140,8 @@ def get_whatsapp(whatsapp_data, connector_id, line_id):
     return None
 
 
-def get_file_data(config_value, media_id, filename, connector_data):
-    messengers = crest.get_params(config_value, 'messengers')
-    all_whatsapp = messengers['whatsapp']
+def get_file_data(config_data, media_id, filename, connector_data):
+    all_whatsapp = config_data['messengers']['whatsapp']
     current_whatsapp = get_whatsapp(all_whatsapp, connector_data['connector_id'], connector_data['line_id'])
 
     headers = {
@@ -156,14 +153,15 @@ def get_file_data(config_value, media_id, filename, connector_data):
 
     media_url = media_data['url']
     filename = f"{media_id}_{filename}"    
-    return download_file(config_value, media_url, filename, headers)
+    return download_file(config_data, media_url, filename, headers)
 
 
-def download_file(config_value, media_url, filename, headers):
+def download_file(config_data, media_url, filename, headers):
     response = requests.get(media_url, headers=headers)
     if response.status_code == 200:
         file_content_base64 = base64.b64encode(response.content).decode('utf-8')
-        response = bitrix.uploadfile(config_value, file_content_base64, filename)
+        response = bitrix.uploadfile(config_data, file_content_base64, filename)
+
         if 'result' in response:      
             file_url = response['result']['DOWNLOAD_URL']
             return file_url

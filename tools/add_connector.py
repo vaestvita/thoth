@@ -44,8 +44,13 @@ def main():
         placement_handler = file_data['bitrix']['handler']
     
     connector_name = input("Введите значение NAME коннектора: ")
+    user_defined_connector_id = input("Введите id коннектора или нажмите Enter для автоматической генерации: ")
     svg_file_path_or_url = input("Введите путь к файлу SVG или URL картинки: ")
-    
+    if user_defined_connector_id.strip() == "":
+        connector_id = f"{file_data['system']['config_name']}_{''.join(random.choices(string.ascii_letters + string.digits, k=5))}".lower()
+    else:
+        connector_id = user_defined_connector_id.strip()
+
     if svg_file_path_or_url.startswith('http://') or svg_file_path_or_url.startswith('https://'):
         # Скачивание изображения по URL
         response = requests.get(svg_file_path_or_url)
@@ -62,7 +67,6 @@ def main():
     encoded_image = base64.b64encode(image_data).decode('utf-8')
     data_image = f"data:image/svg+xml;base64,{encoded_image}"
     
-    connector_id = f"{file_data['system']['config_name']}_{''.join(random.choices(string.ascii_letters + string.digits, k=5))}".lower()
     
     imconnector_data = {
         'auth': access_token,

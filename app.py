@@ -1,27 +1,23 @@
 from flask import Flask, request, jsonify
-import os
 import json
 
 import crest, bitrix, whatsapp
 
 
-def check_config_value(config_value, service, bitrix24_domain=None):    
-    config_path = os.path.join('configs', f"{config_value}.json")    
-    if os.path.exists(config_path) and config_value != 'config':
-        with open(config_path, 'r') as configfile:
-            config_data = json.load(configfile)            
-            if service == 'bitrix':                
-                if 'bitrix24_domain' in config_data['system'] and bitrix24_domain:
-                    return config_data['system']['bitrix24_domain'] == bitrix24_domain
-                else:
-                    return False
+def check_config_value(config_value, section=None, bitrix24_domain=None):
+    config_data = crest.get_params(config_value)
+    if config_data:
+        if section == 'bitrix':
+            if bitrix24_domain == config_data['bitrix']['bitrix24_domain']:
+                return config_data
             else:
-                return True                
+                return False
+        else:
+            return config_data
     return False
 
 
 app = Flask(__name__)
-
 
 @app.route('/', methods=['GET', 'POST'])
 def project_info():
@@ -45,7 +41,8 @@ def app_install():
     event_value = request.form.get('event') == 'ONAPPINSTALL'
     config_value = request.args.get('config')
     bitrix24_domain = request.form.get('auth[domain]')
-    if event_value and config_value and check_config_value(config_value, 'bitrix', bitrix24_domain):
+    if event_value and config_value:
+        config_data = check_config_value(config_value, 'bitrix', bitrix24_domain)
 
         app_data = {
             'member_id': request.form.get('auth[member_id]'),
@@ -59,7 +56,8 @@ def app_install():
         }
 
         if crest.write_to_config(config_value, app_data, 'bitrix'):
-            bitrix.get_storage(config_value)
+            config_data['bitrix'].update(app_data)
+            bitrix.get_storage(config_data)
             return 'Success', 200
         else:
             return 'Error writing to config', 500
@@ -72,24 +70,27 @@ def b24_handler():
     config_value = request.args.get('config')
     bitrix24_domain = request.args.get('DOMAIN') or request.form.get('auth[domain]')
 
-    if config_value and check_config_value(config_value, 'bitrix', bitrix24_domain):
-        placement_value = request.form.get('PLACEMENT')
-        if placement_value and placement_value == 'SETTING_CONNECTOR':
-            placement_options = json.loads(request.form.get('PLACEMENT_OPTIONS', '{}'))            
-            response = bitrix.connector_activate(config_value, placement_options)
-            return response
+    if config_value:
+        config_data = check_config_value(config_value, 'bitrix', bitrix24_domain)
+        if config_data:
+            placement_value = request.form.get('PLACEMENT')
+            if placement_value and placement_value == 'SETTING_CONNECTOR':
+                placement_options = json.loads(request.form.get('PLACEMENT_OPTIONS', '{}'))            
+                response = bitrix.connector_activate(config_data, placement_options)
+                return response
 
-        event_value = request.form.get('event')
-        if event_value:
-            if  event_value == 'ONIMCONNECTORMESSAGEADD':
-                response = bitrix.process_chat_message(config_value, request.form)
-                print('ONIMCONNECTORMESSAGEADD', response)
+            event_value = request.form.get('event')
+            if event_value:
+                if  event_value == 'ONIMCONNECTORMESSAGEADD':
+                    response = bitrix.process_chat_message(config_data, request.form)
+                    print('ONIMCONNECTORMESSAGEADD', response)
 
-            # При отключении или удалении от линии удалить линию из списка линий коннектора
-            elif event_value in ['ONIMCONNECTORSTATUSDELETE', 'ONIMCONNECTORLINEDELETE']:
-                bitrix.line_disconnection(config_value, request.form)
+                # При отключении или удалении от линии удалить линию из списка линий коннектора
+                elif event_value in ['ONIMCONNECTORSTATUSDELETE', 'ONIMCONNECTORLINEDELETE']:
+                    bitrix.line_disconnection(config_data, request.form)
 
-            return 'Success', 200
+                return 'Success', 200
+        return 'Forbidden', 403
     return 'Forbidden', 403
         
 
@@ -97,10 +98,11 @@ def b24_handler():
 def wba_handler():
     if request.method == 'GET':
         config_value = request.args.get('config')
-        if config_value and check_config_value(config_value, 'whatsapp'):
+        if config_value:
+            config_data = check_config_value(config_value)
             if request.args.get("hub.mode") == 'subscribe':
                 verify_token = request.args.get("hub.verify_token")
-                if whatsapp.webhook_subscribe(config_value, verify_token):
+                if whatsapp.webhook_subscribe(config_data, verify_token):
                     challenge = request.args.get("hub.challenge")
                     return challenge, 200
                 
@@ -109,9 +111,10 @@ def wba_handler():
     elif request.method == 'POST':
 
         config_value = request.args.get('config')
-        if config_value and check_config_value(config_value, 'whatsapp'):          
-           response = whatsapp.message_processing(request.json['entry'][0], config_value)
-           return 'Success', 200
+        if config_value: 
+            config_data = check_config_value(config_value)
+            response = whatsapp.message_processing(request.json['entry'][0], config_data)
+            return 'Success', 200
         return 'Forbidden', 403
 
 

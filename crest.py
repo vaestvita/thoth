@@ -30,20 +30,17 @@ def write_to_config(config_value, app_data, section=None):
         return False
 
 
-def get_params(config_value, section):
+def get_params(config_value):
     config_path = os.path.join('configs', f"{config_value}.json")
     if os.path.exists(config_path):
         with open(config_path, 'r') as configfile:
             config_data = json.load(configfile)
-            if section in config_data:
-                return config_data[section]
+            return config_data
     return None
 
 
-def get_new_token(config_name):
+def get_new_token(bitrix_data):
     try:
-        bitrix_data = get_params(config_name, 'bitrix')
-
         new_token_data = {
             'grant_type': 'refresh_token',
             'client_id' : bitrix_data['client_id'],
@@ -61,6 +58,7 @@ def get_new_token(config_name):
             refresh_token = token_data['refresh_token']
 
             # Обновляем данные в файле конфигурации
+            config_name = bitrix_data['config_key']
             write_to_config(config_name, {'access_token': access_token, 'refresh_token': refresh_token}, 'bitrix')
             return access_token, refresh_token
         else:
@@ -75,14 +73,14 @@ def get_new_token(config_name):
 
 
 
-def call_api(method, api_method, data, config_value):
+def call_api(method, api_method, data, config_data):
     try:
-        bitrix_data = get_params(config_value, 'bitrix')
-        client_endpoint = bitrix_data['client_endpoint']
+        bitrix24_params = config_data['bitrix']
+        client_endpoint = bitrix24_params['client_endpoint']
 
         # Формирование данных для запроса
         request_data = {
-            'auth': bitrix_data['access_token'],
+            'auth': bitrix24_params['access_token'],
             **data
         }
 
@@ -97,11 +95,11 @@ def call_api(method, api_method, data, config_value):
         # Проверка ответа на наличие ошибки о истекшем токене
         if 'error' in response and response['error'] == 'expired_token':
             # Получаем новый токен
-            access_token, refresh_token = get_new_token(config_value)
+            access_token, refresh_token = get_new_token(bitrix24_params)
             if access_token and refresh_token:
-                bitrix_data['access_token'] = access_token
+                bitrix24_params['access_token'] = access_token
                 # Повторный вызов функции с обновленным токеном
-                response = call_api(method, api_method, data, config_value)
+                response = call_api(method, api_method, data, config_data)
                 return response
             else:
                 return {'error': 'Failed to get new token'}
