@@ -1,11 +1,9 @@
-# Script Descriptions
+# Описание скриптов
 
-[Русский](README.ru.md)
+Скрипты для выполнения некоторых рутинных операций 
 
-Scripts for performing some routine operations
-
-+ [add_config](add_config.py): Designed for the initial generation of a configuration file. After launching and entering the parameters requested by the script, a file with a unique name is created in the configs folder, which will subsequently store all the necessary credentials for the operation of one local Bitrix24 application, including both Bitrix24 itself and connected systems.
-+ [add_connector](add_connector.py): Designed for the registration of a contact center connector [imconnector.register](https://training.bitrix24.com/rest_help/imconnector/methods/imconnector_register.php) and subscription to the events OnImConnectorMessageAdd, OnImConnectorLineDelete, OnImConnectorStatusDelete.
-+ [add_whatsapp](add_whatsapp.py): Designed for entering WhatsApp Business API credentials into the configuration file.
-+ [event_bind](event_bind.py): Designed for subscribing to arbitrary events at the handler address specified in the selected configuration file.
-+ [event_unbind](event_unbind.py): Designed for unsubscribing from events of the selected local application (configuration file).
++ [add_config](add_config.py): Предназначен для первичной генерации конфигурационного файла. После запуска и ввода запрашиваемых скриптом параметров в папке configs создается файл с уникальным именем в котором в дальнейшем будут храниться все необходимые для работы одного локального приложения Битрикс24 учётные данные как самого Битрикс24, так и подключаемых систем.
++ [add_connector](add_connector.py): Предназначен для регистрации коннектора контакт-центра [imconnector.register](https://dev.1c-bitrix.ru/rest_help/imconnector/methods/imconnector_register.php) и подписки на события OnImConnectorMessageAdd, OnImConnectorLineDelete, OnImConnectorStatusDelete
++ [add_whatsapp](add_whatsapp.py): Предназначен для записи учетных данных WhatsApp Business API в конфигурационный файл
++ [event_bind](event_bind.py): Предназначен для подписки на произвольные события на адрес handler, указанный в выбранном конфигурационном файле
++ [event_unbind](event_unbind.py): Предназначен для удаления подписки на события выбранного локального приложения (конфигурационного файла).
