@@ -1,4 +1,4 @@
-## Bitrix24 Integration Hub - Thoth
+## Thoth: Bitrix24 Integration Hub 
 
 ### Описание
 

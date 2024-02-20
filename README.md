@@ -1,6 +1,6 @@
-## Bitrix24 Integration Hub - Thoth 
+## Thoth: Bitrix24 Integration Hub  
 
-[Russian](README.ru.md)
+[Русский](README.ru.md)
 
 ### Description
 
