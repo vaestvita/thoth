@@ -93,13 +93,14 @@ def b24_handler():
             if placement_value and placement_value == 'SETTING_CONNECTOR':
                 placement_options = json.loads(request.form.get('PLACEMENT_OPTIONS', '{}'))            
                 response = bitrix.connector_activate(config_data, placement_options)
+                logger.info(response)
                 return response
 
             event_value = request.form.get('event')
             if event_value:
                 if  event_value == 'ONIMCONNECTORMESSAGEADD':
                     response = bitrix.process_chat_message(config_data, request.form)
-                    logger.info(response)
+                    logger.info(f'ONIMCONNECTORMESSAGEADD{response}')
                 # При отключении или удалении от линии удалить линию из списка линий коннектора
                 elif event_value in ['ONIMCONNECTORSTATUSDELETE', 'ONIMCONNECTORLINEDELETE']:
                     response = bitrix.line_disconnection(config_data, request.form)

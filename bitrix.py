@@ -128,7 +128,8 @@ def process_chat_message(config_data, message_data):
                     chat_message['document']['filename'] = message_data.get('data[MESSAGES][0][message][files][0][name]')
 
                 user_list = crest.call_api('GET', 'im.chat.user.list', {'CHAT_ID': chat_id}, config_data)
-                get_users_info = crest.call_api('POST', 'im.user.list.get', {'ID': user_list['result']}, config_data)
+                if user_list:
+                    get_users_info = crest.call_api('POST', 'im.user.list.get', {'ID': user_list['result']}, config_data)
                 personal_mobile = get_personal_mobile(get_users_info['result'])
 
                 connector_data = {
@@ -136,7 +137,10 @@ def process_chat_message(config_data, message_data):
                     'line_id': line_id
                 }
                 response =  whatsapp.send_message(config_data, personal_mobile, chat_message, connector_data)
-                return response
+                # return response
+            
+            else:
+                return f'Мессенджер не найден для коннектора {connector_id} и линии {line_id}'
         
         status_data = {
             'message_id': message_data.get('data[MESSAGES][0][im][message_id]'),

@@ -104,6 +104,6 @@ def call_api(method, api_method, data, config_data):
             else:
                 return {'error': 'Failed to get new token'}
 
-        return response['result']
+        return response
     except Exception as e:
         return {'error': str(e)}
