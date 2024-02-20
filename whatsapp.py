@@ -45,6 +45,7 @@ def message_processing(entry, config_data):
                 'phone_number_id' : phone_number_id,
                 'name': changes['contacts'][0]['profile']['name'],
                 'wa_id': changes['contacts'][0]['wa_id'],
+                'chat_id': changes['metadata']['display_phone_number']
             }
 
             if message_type == 'text':
@@ -66,8 +67,13 @@ def message_processing(entry, config_data):
                 message_params['body'] = file_name
                 if 'caption' in media_data:
                     message_params['body'] = media_data['caption']
-
-                message_params['file_url'] = get_file_data(config_data, media_id, file_name, connector_data)
+                
+                file_url = get_file_data(config_data, media_id, file_name, connector_data)
+                if 'error' in file_url:
+                    message_params['body'] = 'Ошибка при загрузке файла. Проверьте логи и настройки THOTH'
+                else:
+                    message_params['file_url'] = file_url
+                    
 
             else:
                 phone = changes['contacts'][0]['wa_id']
@@ -75,7 +81,6 @@ def message_processing(entry, config_data):
                 message['type'] = 'text'
                 message['text'] = {'body': '( ͡° ͜ʖ ͡°) \nЭтот тип сообщений не принимается.'}
                 response = send_message(config_data, [phone], message, connector_data)
-                print('RESPONSE', response)
                 return response
 
             return bitrix.send_message(config_data, message_params)
@@ -110,8 +115,7 @@ def send_message(config_data, personal_mobile, message, connector_data):
         access_token = current_whatsapp['access_token']
 
         headers = {
-            'Authorization': f'Bearer {access_token}',
-            'Content-Type': 'application/json'
+            'Authorization': f'Bearer {access_token}'
         }
 
         for mobile in personal_mobile:
@@ -148,10 +152,12 @@ def get_file_data(config_data, media_id, filename, connector_data):
 
     headers = {
     'Authorization': f'Bearer {access_token}',
-    'Content-Type': 'application/json'
         }
     
     media_data = requests.get(f'https://graph.facebook.com/v19.0/{media_id}', headers=headers).json()
+
+    if 'error' in media_data:
+        return media_data
 
     media_url = media_data['url']
     filename = f"{media_id}_{filename}"    
@@ -168,5 +174,5 @@ def download_file(config_data, media_url, filename, headers):
             file_url = response['result']['DOWNLOAD_URL']
             return file_url
         else:
-            print('error', response)
+            return response
         

@@ -1,7 +1,23 @@
 from flask import Flask, request, jsonify
 import json
+import logging
+from logging.handlers import TimedRotatingFileHandler
+import os
 
 import crest, bitrix, whatsapp
+
+log_directory = "logs"
+if not os.path.exists(log_directory):
+    os.makedirs(log_directory)
+
+log_file_path = os.path.join(log_directory, "app.log")
+logger = logging.getLogger("MyLogger")
+logger.setLevel(logging.INFO)  
+handler = TimedRotatingFileHandler(log_file_path, when="midnight", interval=1, backupCount=30)
+handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
 def check_config_value(config_value, section=None, bitrix24_domain=None):
@@ -83,11 +99,11 @@ def b24_handler():
             if event_value:
                 if  event_value == 'ONIMCONNECTORMESSAGEADD':
                     response = bitrix.process_chat_message(config_data, request.form)
-                    print('ONIMCONNECTORMESSAGEADD', response)
-
+                    logger.info(response)
                 # При отключении или удалении от линии удалить линию из списка линий коннектора
                 elif event_value in ['ONIMCONNECTORSTATUSDELETE', 'ONIMCONNECTORLINEDELETE']:
-                    bitrix.line_disconnection(config_data, request.form)
+                    response = bitrix.line_disconnection(config_data, request.form)
+                    logger.info(response)
 
                 return 'Success', 200
         return 'Forbidden', 403
@@ -114,6 +130,7 @@ def wba_handler():
         if config_value: 
             config_data = check_config_value(config_value)
             response = whatsapp.message_processing(request.json['entry'][0], config_data)
+            logger.info(response)
             return 'Success', 200
         return 'Forbidden', 403
 

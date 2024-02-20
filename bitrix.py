@@ -65,13 +65,14 @@ def send_message(config_data, message_params):
                     'files': files
                 },
                 'chat': {
-                    'url': f"https://web.whatsapp.com/send/?phone={message_params['wa_id']}"
+                    'id': message_params['chat_id'],
+                    # 'url': f"https://web.whatsapp.com/send/?phone={message_params['wa_id']}"
                 }
             }
         ]
     }
 
-    response =  crest.call_api('POST', 'imconnector.send.messages', message_data, config_data)
+    return crest.call_api('POST', 'imconnector.send.messages', message_data, config_data)
 
 
 def send_status_delivery(config_data, status_data):
@@ -135,8 +136,7 @@ def process_chat_message(config_data, message_data):
                     'line_id': line_id
                 }
                 response =  whatsapp.send_message(config_data, personal_mobile, chat_message, connector_data)
-
-                print('RRRRRRRRRRRRRRR', response)
+                return response
         
         status_data = {
             'message_id': message_data.get('data[MESSAGES][0][im][message_id]'),
@@ -148,7 +148,6 @@ def process_chat_message(config_data, message_data):
         return send_status_delivery(config_data, status_data)
 
     except Exception as e:
-        print('error', str(e))
         return {'error': str(e)}
 
 
@@ -189,7 +188,8 @@ def get_storage(config_data):
     get_storage_data = crest.call_api('POST', 'disk.storage.getforapp', {}, config_data)
     if 'result' in get_storage_data:
         storage_id = get_storage_data['result']['ID']
-        crest.write_to_config(config_value, {'storage_id': storage_id}, 'bitrix')
+        if crest.write_to_config(config_value, {'storage_id': storage_id}, 'bitrix'):
+            return f'ID {storage_id} хранилища успешно записан в конфигурацию'
     else:
         print(f'Ошибка получения данных хранилища {get_storage_data}')
 
@@ -207,15 +207,16 @@ def line_disconnection(config_data, event_data):
             if connector['connector_id'] == connector_value and 'lines' in connector:
                 if line_value in connector['lines']:
                     connector['lines'].remove(line_value)
-                    print(f"Line {line_value} disconnected from connector {connector_value}.")
+                    response = f"Line {line_value} disconnected from connector {connector_value}."
     
     elif event_value == 'ONIMCONNECTORLINEDELETE':
         # Удаляем line_value из всех коннекторов
         for connector in connectors:
             if 'lines' in connector and line_value in connector['lines']:
                 connector['lines'].remove(line_value)
-                print(f"Line {line_value} disconnected from all connectors.")
+                response = f"Line {line_value} disconnected from all connectors."
 
     # Сохранение обновленных данных конфигурации
     config_value = bitrix_data['config_key']
-    crest.write_to_config(config_value, {'connectors': connectors}, 'bitrix')
+    if crest.write_to_config(config_value, {'connectors': connectors}, 'bitrix'):
+        return response
