@@ -1,72 +1,74 @@
-## Bitrix24 Integration Hub - Thoth
+## Bitrix24 Integration Hub - Thoth 
 
-### Описание
+[Russian](README.ru.md)
 
-Thoth позволяет создавать локальные приложения Битрикс24 с OAuth 2.0 авторизацией.
+### Description
 
-Одна инсталляция приложения позволяет интегрировать с Битрикс24 неограниченное количество независимых друг от друга внешних систем по API.
+Thoth enables the creation of local Bitrix24 applications with OAuth 2.0 authorization.
 
-Токен OAuth 2.0 авторизации Битрикс24 автоматически обновляется.
+A single installation of the application allows integrating an unlimited number of external systems with Bitrix24 via API.
 
-## Видеоинструкции на Youtube
+The Bitrix24 OAuth 2.0 authorization token is automatically refreshed.
+
+## YouTube Video Tutorials
 
 https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 
 ## ToDo
-+ [x] WhatsApp API [Business](https://developers.facebook.com/docs/whatsapp/) /до 20.02.2024
-+ [ ] Подробное логирование /до 28.02.2024
-+ [ ] [Asterisk](https://docs.asterisk.org/) /до 20.03.2024
++ [x] WhatsApp API [Business](https://developers.facebook.com/docs/whatsapp/) /by 20.02.2024
++ [ ] Detailed logging /by 28.02.2024
++ [ ] [Asterisk](https://docs.asterisk.org/) /by 20.03.2024
 + [ ] Telegram - ... 
 + [ ] Instagram - ...
 + [ ] SMS (goip) - ...
 + more ...
 
-## Установка 
-+ Для корректной работы платформы Thoth необходим домен, обеспеченный действительным SSL-сертификатом.
-+ Пример настройки приложений [Flask с Gunicorn и Nginx на сервере Ubuntu](https://www.digitalocean.com/community/tutorials/how-to-serve-flask-applications-with-gunicorn-and-nginx-on-ubuntu-20-04)
-+ Все последующие действия должны осуществляться при запущенном и корректно работающем приложении.
+## Installation 
++ For the correct operation of the Thoth platform, a domain secured with a valid SSL certificate is required.
++ Example of setting up [Flask with Gunicorn and Nginx on an Ubuntu server](https://www.digitalocean.com/community/tutorials/how-to-serve-flask-applications-with-gunicorn-and-nginx-on-ubuntu-20-04)
++ All subsequent actions must be carried out with the application running and functioning correctly.
 
-## Генерация конфигурационного файла и подключение коннектора 
-+ Запустите файл [add_config](tools/add_config.py)
+## Generating a Configuration File and Connecting a Connector 
++ Run the [add_config](tools/add_config.py) file
 ~~~
 python tools/add_config.py
 ~~~
-+ Скрипт запросит необходимые для генерации конфигурации данные
++ The script will request data necessary for generating the configuration
 ~~~
-Введите название конфигурации (my_project): test
-Введите адрес портала (domain.bitrix24.ru): domain.bitrix24.ru
-Введите домен сервера, где будет расположен скрипт (domain.ru): app.thoth.kz
+Enter configuration name (my_project): test
+Enter portal address (domain.bitrix24.ru): domain.bitrix24.ru
+Enter the server domain where the script will be located (domain.ru): app.thoth.kz
 ~~~
-+ В результате в папке configs будет сформирован конфигурационный файл, а в консоли будут выведены данные, необходимые для подключения к Битрикс24.
-Сохраните полученный ответ для удобства 
++ As a result, a configuration file will be created in the configs folder, and data necessary for connecting to Bitrix24 will be displayed in the console.
+Save the received response for convenience 
 ~~~
-Базовая конфигурация сохранена. Данные для регистрации приложения:
-1. Битрикс24. Путь вашего обработчика: https://app.thoth.kz/bitrix?config=qJA0VBVH7tjxfGEfVE5U
-2. Битрикс24. Путь для первоначальной установки: https://app.thoth.kz/install?config=qJA0VBVH7tjxfGEfVE5U
+Basic configuration saved. Data for app registration:
+1. Bitrix24. Your handler path: https://app.thoth.kz/bitrix?config=qJA0VBVH7tjxfGEfVE5U
+2. Bitrix24. Path for initial installation: https://app.thoth.kz/install?config=qJA0VBVH7tjxfGEfVE5U
 ~~~
-+ В Битрикс24 создайте серверное локальное приложение без интерфейса в Битрикс24 и заполните соответствующие поля (Путь вашего обработчика и Путь для первоначальной установки)
-+ Необходимые права (Настройка прав): crm,imopenlines,contact_center,user,im,imconnector,disk
-+ Нажмите "Сохранить"
-+ Конфигурационный файл будет автоматически заполнен данными с сервера Битрикс24
-+ Скопируйте в соответствующие поля конфигурационного файла значения полей Код приложения (client_id) и Ключ приложения (client_secret)
++ In Bitrix24, create a server-side local application without a Bitrix24 interface and fill in the corresponding fields (Your handler path and Path for initial installation)
++ Required permissions (Setting permissions): crm, imopenlines, contact_center, user, im, imconnector, disk
++ Click "Save"
++ The configuration file will automatically be filled with data from the Bitrix24 server
++ Copy the values of the Application Code (client_id) and Application Key (client_secret) into the corresponding fields of the configuration file
 
-#### Создание коннектора
-+ Запустите файл [add_connector.py](tools/add_connector.py), выберите конфигурацию для настройки 
-+ Введите имя коннектора и путь к файлу SVG или URL картинки
+#### Creating a Connector
++ Run the [add_connector.py](tools/add_connector.py) file, select a configuration for setup
++ Enter the connector name and the path to the SVG file or URL of the image
 
-#### Подключение коннектора Битрикс24 к открытой линии
-+ Перейдите в раздел Интеграции > Контакт Центр и выберите созданный коннектор
-+ Нажмите "Подключить"
-+ Thoth, как и Битрикс24 поддерживает подключение "многие ко многим"
+#### Connecting the Bitrix24 Connector to the Open Line
++ Go to the Integrations > Contact Center section and select the created connector
++ Click "Connect"
++ Thoth, like Bitrix24, supports "many-to-many" connections
 
-#### Подключение мессенджера (На примере WhatsApp) к Битрикс24
+#### Connecting a Messenger (Using WhatsApp as an Example) to Bitrix24
 
- + ОЧЕНЬ ВАЖНО! Для одной пары коннектор+линия на стороне приложения thoth нужно подключать только один канал! Иначе работоспособность вообще не гарантируется. Пример конфигурации можете посмотреть [здесь](example/I29bPabawXtNqRtz4Q76.json)
- + Рекомендуется получить [Постоянный маркер](https://developers.facebook.com/docs/whatsapp/business-management-api/get-started), иначе придется перевыпускать токен каждый день
- + Создайте приложение на [портале разработчиков](https://developers.facebook.com/apps/)
- + В панели подключите продукты Webhooks, WhatsApp
- + Сохраните ID номера телефона (тестовый или подключенный)
- + Загустите скрипт [add_whatsapp](tools/add_whatsapp.py)
- + На портале - Быстрый старт > Настройка > URL обратного вызова
- + Введите адрес и Подтверждение маркера, выданные скриптом [add_whatsapp](tools/add_whatsapp.py)
- + Нажмите "Подтвердить и сохранить"
++ VERY IMPORTANT! For one pair of connector+line on the Thoth application side, only one channel should be connected! Otherwise, functionality is not guaranteed at all. You can view an example configuration [here](example/I29bPabawXtNqRtz4Q76.json)
++ It is recommended to obtain a [Permanent Token](https://developers.facebook.com/docs/whatsapp/business-management-api/get-started), otherwise, you will need to reissue the token every day
++ Create an application on the [developers' portal](https://developers.facebook.com/apps/)
++ In the panel, connect the Webhooks, WhatsApp products
++ Save the phone number ID (test or connected)
++ Run the [add_whatsapp](tools/add_whatsapp.py) script
++ On the portal - Quick Start > Configuration > Callback URL
++ Enter the address and Confirmation Token given by the [add_whatsapp](tools/add_whatsapp.py) script
++ Click "Verify and Save"
