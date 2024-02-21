@@ -137,19 +137,18 @@ def process_chat_message(config_data, message_data):
                     'line_id': line_id
                 }
                 response =  whatsapp.send_message(config_data, personal_mobile, chat_message, connector_data)
-                # return response
-            
-            else:
-                return f'Мессенджер не найден для коннектора {connector_id} и линии {line_id}'
-        
-        status_data = {
-            'message_id': message_data.get('data[MESSAGES][0][im][message_id]'),
-            'chat_id': chat_id,
-            'connector_id': connector_id,
-            'line_id': line_id
-        }
+                if not 'error' in response:
+                    status_data = {
+                        'message_id': message_data.get('data[MESSAGES][0][im][message_id]'),
+                        'chat_id': chat_id,
+                        'connector_id': connector_id,
+                        'line_id': line_id
+                    }
 
-        return send_status_delivery(config_data, status_data)
+                    send_status_delivery(config_data, status_data)
+                return response            
+            else:
+                return f'Мессенджер не найден для коннектора {connector_id} и линии {line_id}'       
 
     except Exception as e:
         return {'error': str(e)}

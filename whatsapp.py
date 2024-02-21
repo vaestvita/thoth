@@ -83,10 +83,11 @@ def message_processing(entry, config_data):
                 response = send_message(config_data, [phone], message, connector_data)
                 return response
 
-            return bitrix.send_message(config_data, message_params)
-    
-    else:
-        return 'Success', 200
+            response = bitrix.send_message(config_data, message_params)
+            if 'result' in response:
+                return response['result']
+            else:
+                return response
          
 
 def format_contacts(contacts):
@@ -114,9 +115,7 @@ def send_message(config_data, personal_mobile, message, connector_data):
         phone_id = current_whatsapp['phone_id']
         access_token = current_whatsapp['access_token']
 
-        headers = {
-            'Authorization': f'Bearer {access_token}'
-        }
+        headers = {'Authorization': f'Bearer {access_token}'}
 
         for mobile in personal_mobile:
             message_data = {
@@ -127,9 +126,8 @@ def send_message(config_data, personal_mobile, message, connector_data):
                 **message
             }
 
-            response = requests.post(f'https://graph.facebook.com/v19.0/{phone_id}/messages', 
-                                    headers=headers, json=message_data)
-            return response.status_code, response.json()
+            return requests.post(f'https://graph.facebook.com/v19.0/{phone_id}/messages', 
+                                    headers=headers, json=message_data).json()
 
     except Exception as e:
         return 500, {'error': str(e)}

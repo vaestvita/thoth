@@ -58,8 +58,8 @@ def get_new_token(bitrix_data):
             refresh_token = token_data['refresh_token']
 
             # Обновляем данные в файле конфигурации
-            config_name = bitrix_data['config_key']
-            write_to_config(config_name, {'access_token': access_token, 'refresh_token': refresh_token}, 'bitrix')
+            config_value = bitrix_data['config_key']
+            write_to_config(config_value, {'access_token': access_token, 'refresh_token': refresh_token}, 'bitrix')
             return access_token, refresh_token
         else:
             print("Не удалось получить новый токен.", token_data)

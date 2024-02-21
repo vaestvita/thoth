@@ -130,8 +130,9 @@ def wba_handler():
         config_value = request.args.get('config')
         if config_value: 
             config_data = check_config_value(config_value)
-            response = whatsapp.message_processing(request.json['entry'][0], config_data)
-            logger.info(response)
+            if 'contacts' in request.json['entry'][0]['changes'][0]['value']:
+                response = whatsapp.message_processing(request.json['entry'][0], config_data)
+                logger.info(response)
             return 'Success', 200
         return 'Forbidden', 403
 

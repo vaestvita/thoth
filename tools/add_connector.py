@@ -1,53 +1,25 @@
-import os
-import json
 import random
 import string
 import base64
 import requests
 
+import utilities
+import crest
 
-script_directory = os.path.dirname(os.path.abspath(__file__))
-parent_directory = os.path.dirname(script_directory)
-config_folder = os.path.join(parent_directory, 'configs')
-
-def read_json_files():
-    config_files = []
-    for filename in os.listdir(config_folder):
-        if filename.endswith('.json'):
-            config_files.append(filename)
-    return config_files
-
-def choose_configuration(config_files):
-    print("Выберите номер конфигурации для настройки:")
-    for idx, filename in enumerate(config_files, 1):
-        with open(os.path.join(config_folder, filename), 'r') as file:
-            file_data = json.load(file)
-            if 'bitrix' in file_data and 'client_id' in file_data['bitrix'] and 'access_token' in file_data['bitrix']:
-                print(f"{idx}. {file_data['system']['config_name']}")
-    choice = int(input("Введите номер: "))
-    return config_files[choice - 1]
 
 def main():
-    config_files = read_json_files()
-    if not config_files:
-        print("Нет доступных конфигураций для настройки.")
+    config_data = utilities.choose_configuration()
+    if not config_data:
         return
-    
-    chosen_config = choose_configuration(config_files)
 
-    chosen_file_path = os.path.join(config_folder, chosen_config)
-    
-    with open(chosen_file_path, 'r') as file:
-        file_data = json.load(file)
-        client_endpoint = file_data['bitrix']['client_endpoint']
-        access_token = file_data['bitrix']['access_token']
-        placement_handler = file_data['bitrix']['handler']
+    placement_handler = config_data['bitrix']['handler']
+    config_value = config_data['system']['config_key']
     
     connector_name = input("Введите значение NAME коннектора: ")
     user_defined_connector_id = input("Введите id коннектора или нажмите Enter для автоматической генерации: ")
     svg_file_path_or_url = input("Введите путь к файлу SVG или URL картинки: ")
     if user_defined_connector_id.strip() == "":
-        connector_id = f"{file_data['system']['config_name']}_{''.join(random.choices(string.ascii_letters + string.digits, k=5))}".lower()
+        connector_id = f"{config_data['system']['config_name']}_{''.join(random.choices(string.ascii_letters + string.digits, k=5))}".lower()
     else:
         connector_id = user_defined_connector_id.strip()
 
@@ -65,11 +37,9 @@ def main():
     
     # Конвертация изображения в base64
     encoded_image = base64.b64encode(image_data).decode('utf-8')
-    data_image = f"data:image/svg+xml;base64,{encoded_image}"
-    
+    data_image = f"data:image/svg+xml;base64,{encoded_image}"    
     
     imconnector_data = {
-        'auth': access_token,
         'ID': connector_id,
         'NAME': connector_name,
         'ICON': {
@@ -78,19 +48,17 @@ def main():
         'PLACEMENT_HANDLER': placement_handler
     }
 
-    response = requests.post(f'{client_endpoint}imconnector.register', json=imconnector_data).json()
+    response = crest.call_api('POST', 'imconnector.register', imconnector_data, config_data)
 
     if 'error' in response:
         print("Ошибка при регистрации коннектора:", response)
     elif 'result' in response and 'result' in response['result']:
-
-        if 'connectors' not in file_data['bitrix']:
-            file_data['bitrix']['connectors'] = []
-        if not any(connector.get('connector_id') == connector_id for connector in file_data['bitrix']['connectors']):
-            file_data['bitrix']['connectors'].append({'connector_id': connector_id})
-
-        with open(chosen_file_path, 'w') as file:
-            json.dump(file_data, file, indent=4)
+        bitrix_data = config_data['bitrix']
+        if 'connectors' not in bitrix_data:
+            bitrix_data['connectors'] = []
+        if not any(connector.get('connector_id') == connector_id for connector in bitrix_data['connectors']):
+            bitrix_data['connectors'].append({'connector_id': connector_id})
+        crest.write_to_config(config_value, bitrix_data, 'bitrix')
         print("Коннектор успешно зарегистрирован.")
 
         # Проверка и подписка
@@ -99,9 +67,8 @@ def main():
                         'OnImConnectorStatusDelete']
 
         # Получение списка уже зарегистрированных событий
-        get_events_response = requests.get(f'{client_endpoint}event.get', params={'auth': access_token}).json()
+        get_events_response = crest.call_api('POST', 'event.get', {}, config_data)
 
-        # Предполагаем, что 'result' в get_events_response содержит список словарей с событиями и хендлерами
         if 'result' in get_events_response:
             # Создаем словарь, где ключи — названия событий, а значения — URL-адреса хендлеров
             registered_events = {event['event'].upper(): event['handler'] for event in get_events_response['result']}
@@ -111,7 +78,6 @@ def main():
         for event in events_to_bind:
             event_upper = event.upper()
             event_data = {
-                'auth': access_token,
                 'event': event,
                 'HANDLER': placement_handler
             }
@@ -121,9 +87,9 @@ def main():
                 print(f"Событие {event} уже зарегистрировано с handler {placement_handler}.")
                 continue
 
-            # Перерегистрация события с новым хендлером или привязка нового события
-            response = requests.get(f'{client_endpoint}event.bind', params=event_data).json()
-            
+            # Подписка на события
+            response = crest.call_api('GET', 'event.bind', event_data, config_data)
+        
             if 'error' in response:
                 print(f"Ошибка при привязке события {event}:", response)
             else:

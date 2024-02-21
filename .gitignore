@@ -164,3 +164,4 @@ notes.txt
 test.py
 .vscode/*
 test/*
+logs/*
