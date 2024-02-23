@@ -1,4 +1,3 @@
-import requests
 import re
 
 import crest, whatsapp
@@ -110,7 +109,10 @@ def process_chat_message(config_data, message_data):
                 chat_id = message_data.get('data[MESSAGES][0][im][chat_id]')
                 file_type =  message_data.get('data[MESSAGES][0][message][files][0][type]')
                 file_link = message_data.get('data[MESSAGES][0][message][files][0][link]')
-                chat_message = {}
+                user_id = message_data.get('data[MESSAGES][0][message][user_id]')
+                chat_message = {
+                    'biz_opaque_callback_data': f'user_{user_id}'
+                }
                 if not file_type:
                     chat_message['type'] = 'text'
                     message_text = message_data.get('data[MESSAGES][0][message][text]')
@@ -194,7 +196,7 @@ def get_storage(config_data):
         if crest.write_to_config(config_value, {'storage_id': storage_id}, 'bitrix'):
             return f'ID {storage_id} хранилища успешно записан в конфигурацию'
     else:
-        print(f'Ошибка получения данных хранилища {get_storage_data}')
+        return f'Ошибка получения данных хранилища {get_storage_data}'
 
 
 def line_disconnection(config_data, event_data):
@@ -223,3 +225,41 @@ def line_disconnection(config_data, event_data):
     config_value = bitrix_data['config_key']
     if crest.write_to_config(config_value, {'connectors': connectors}, 'bitrix'):
         return response
+
+
+def messageservice_processing(config_data, message_data):
+    messageservice_code = message_data.get('code')
+    if messageservice_code:
+        messenger_type, whatsapp_data = get_messenger_type_by_id(config_data, messageservice_code)
+        if not messenger_type:
+            print('Messenger not found')
+            return
+        message_to = message_data.get('message_to')
+        message_body = message_data.get('message_body')
+        user_id = message_data.get('auth[user_id]')
+        if messenger_type == 'whatsapp' and whatsapp_data:
+            message = {
+                'type': 'text',
+                'text': {
+                    'body': message_body
+                },
+                'biz_opaque_callback_data': f'user_{user_id}'
+            }
+            whatsapp.send_message(config_data, [message_to], message, whatsapp_data=whatsapp_data)
+        else:
+            print(f'Messenger type {messenger_type} is not supported or whatsapp_data is missing')
+
+def get_messenger_type_by_id(config_data, messenger_id):
+    messengers = config_data.get('messengers', {})
+    for messenger_type, messenger_list in messengers.items():
+        for messenger in messenger_list:
+            if messenger.get('messenger_id') == messenger_id and messenger_type == "whatsapp":
+                whatsapp_data = {
+                    "access_token": messenger.get("access_token"),
+                    "phone_id": messenger.get("phone_id")
+                }
+                return messenger_type, whatsapp_data
+            elif messenger.get('messenger_id') == messenger_id:
+                # Для неватсап мессенджеров возвращаем только тип
+                return messenger_type, None
+    return None, None

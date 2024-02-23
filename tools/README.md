@@ -6,4 +6,5 @@
 + [add_connector](add_connector.py): Предназначен для регистрации коннектора контакт-центра [imconnector.register](https://dev.1c-bitrix.ru/rest_help/imconnector/methods/imconnector_register.php) и подписки на события OnImConnectorMessageAdd, OnImConnectorLineDelete, OnImConnectorStatusDelete
 + [add_whatsapp](add_whatsapp.py): Предназначен для записи учетных данных WhatsApp Business API в конфигурационный файл
 + [event_bind](event_bind.py): Предназначен для подписки на произвольные события на адрес handler, указанный в выбранном конфигурационном файле
-+ [event_unbind](event_unbind.py): Предназначен для удаления подписки на события выбранного локального приложения (конфигурационного файла).
++ [event_unbind](event_unbind.py): Предназначен для удаления подписки на указанные события выбранного локального приложения (конфигурационного файла).
++ [add_smsgate](add_smsgate.py): Предназначен для подключения мессенджера в качестве "SMS"-провайдера. 

@@ -13,7 +13,7 @@ def choose_connector(config_data):
     for idx, connector in enumerate(connectors, 1):
         print(f"{idx}. {connector['connector_id']}")
     try:
-        choice = int(input("Выебрите коннектор: ")) - 1
+        choice = int(input("Выберите коннектор: ")) - 1
         if 0 <= choice < len(connectors):
             return connectors[choice]
     except ValueError:
@@ -70,9 +70,10 @@ def main():
     if not chosen_line:
         return
     phone_id = input("Введите ID номера телефона: ")
-    access_token = input("Введите access token WA Bussines: ")
+    access_token = input("Введите access token WA Business: ")
     verify_token = generate_verify_token()
     whatsapp_data = {
+        'messenger_id': f'wb_{utilities.get_time()}',
         'phone_id': phone_id,
         'connector_id': chosen_connector['connector_id'],
         'line_id': chosen_line,

@@ -2,6 +2,7 @@
 import os
 import sys
 import json
+import time
 
 def parent_dir():
     script_directory = os.path.dirname(os.path.abspath(__file__))
@@ -47,3 +48,7 @@ def choose_configuration():
             print("Выбран некорректный номер, попробуйте еще раз.")
     except ValueError:
         print("Пожалуйста, введите числовое значение.")
+
+
+def get_time():
+    return int(time.time())

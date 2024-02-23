@@ -61,6 +61,7 @@ def app_install():
         config_data = check_config_value(config_value, 'bitrix', bitrix24_domain)
 
         app_data = {
+            'app_admin_id': request.form.get('auth[user_id]'),
             'member_id': request.form.get('auth[member_id]'),
             'access_token': request.form.get('auth[access_token]'),
             'refresh_token': request.form.get('auth[refresh_token]'),
@@ -73,7 +74,8 @@ def app_install():
 
         if crest.write_to_config(config_value, app_data, 'bitrix'):
             config_data['bitrix'].update(app_data)
-            bitrix.get_storage(config_data)
+            storage_data = bitrix.get_storage(config_data)
+            logger.info(storage_data)
             return 'Success', 200
         else:
             return 'Error writing to config', 500
@@ -89,6 +91,8 @@ def b24_handler():
     if config_value:
         config_data = check_config_value(config_value, 'bitrix', bitrix24_domain)
         if config_data:
+
+            # Обработка PLACEMENT
             placement_value = request.form.get('PLACEMENT')
             if placement_value and placement_value == 'SETTING_CONNECTOR':
                 placement_options = json.loads(request.form.get('PLACEMENT_OPTIONS', '{}'))            
@@ -96,6 +100,7 @@ def b24_handler():
                 logger.info(response)
                 return response
 
+            # Обработка событий
             event_value = request.form.get('event')
             if event_value:
                 if  event_value == 'ONIMCONNECTORMESSAGEADD':
@@ -105,8 +110,11 @@ def b24_handler():
                 elif event_value in ['ONIMCONNECTORSTATUSDELETE', 'ONIMCONNECTORLINEDELETE']:
                     response = bitrix.line_disconnection(config_data, request.form)
                     logger.info(response)
-
-                return 'Success', 200
+            
+            service_value = request.args.get('service')
+            if service_value and service_value == 'messageservice':
+                bitrix.messageservice_processing(config_data, request.form)
+            return 'Success', 200
         return 'Forbidden', 403
     return 'Forbidden', 403
         
@@ -130,9 +138,8 @@ def wba_handler():
         config_value = request.args.get('config')
         if config_value: 
             config_data = check_config_value(config_value)
-            if 'contacts' in request.json['entry'][0]['changes'][0]['value']:
-                response = whatsapp.message_processing(request.json['entry'][0], config_data)
-                logger.info(response)
+            response = whatsapp.message_processing(request.json['entry'][0], config_data)
+            logger.info(response)
             return 'Success', 200
         return 'Forbidden', 403
 

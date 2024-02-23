@@ -16,7 +16,7 @@
         "client_endpoint": "https://b24-XXXX.bitrix24.ru/rest/",
         "server_endpoint": "https://oauth.bitrix.info/rest/",
         "application_token": "1ea70a9846d18f076b1b76",
-        "scope": "crm,imopenlines,contact_center,user,disk,im,imconnector",
+        "scope": "crm,imopenlines,contact_center,user,disk,im,imconnector,messageservice",
         "status": "L",
         "storage_id": 52,
         "connectors": [
@@ -42,7 +42,9 @@
                 "connector_id": "my_project_9zuwd",
                 "line_id": "12",
                 "access_token": "EAAWyRIMXICEBOwwwCkgzVvtJXubCFkH2XZC1OduncRBnaVVCN7TKurQuJDa",
-                "verify_token": "KF8hQQpQBfQPee572vnitNUjd"
+                "verify_token": "KF8hQQpQBfQPee572vnitNUjd",
+                "messenger_id": "wb_1708519836",
+                "smsgate": true
             }
         ]
     }
