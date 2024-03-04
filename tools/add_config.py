@@ -48,8 +48,7 @@ def main():
     config_file = create_config_file(domain_name, config_name, bitrix24_domain)
     
     print("Базовая конфигурация сохранена. Данные для регистрации приложения:")
-    print(f"1. Битрикс24. Путь вашего обработчика: {domain_name}/bitrix?config={config_file}")
-    print(f"2. Битрикс24. Путь для первоначальной установки: {domain_name}/install?config={config_file}")
+    print(f"Адрес обработчика и первоначальной установки: {domain_name}/bitrix?config={config_file}")
 
 if __name__ == "__main__":
     main()

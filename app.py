@@ -52,14 +52,29 @@ def project_info():
         return jsonify(info)
 
 
-@app.route('/install', methods=['POST'])
-def app_install():
-    event_value = request.form.get('event') == 'ONAPPINSTALL'
+@app.route('/bitrix', methods=['POST'])
+def b24_handler():
     config_value = request.args.get('config')
-    bitrix24_domain = request.form.get('auth[domain]')
-    if event_value and config_value:
-        config_data = check_config_value(config_value, 'bitrix', bitrix24_domain)
+    bitrix24_domain = request.args.get('DOMAIN') or request.form.get('auth[domain]')
 
+    if not config_value:
+        return 'Forbidden', 403
+    config_data = check_config_value(config_value, 'bitrix', bitrix24_domain)
+    if not config_data:
+        return 'Forbidden', 403
+
+    # Обработка PLACEMENT
+    placement_value = request.form.get('PLACEMENT')
+    if placement_value and placement_value == 'SETTING_CONNECTOR':
+        placement_options = json.loads(request.form.get('PLACEMENT_OPTIONS', '{}'))            
+        response = bitrix.connector_activate(config_data, placement_options)
+        logger.info(response)
+        return response
+
+    # Обработка событий
+    event_value = request.form.get('event')
+    # Установка приложения
+    if event_value == 'ONAPPINSTALL':
         app_data = {
             'app_admin_id': request.form.get('auth[user_id]'),
             'member_id': request.form.get('auth[member_id]'),
@@ -79,70 +94,47 @@ def app_install():
             return 'Success', 200
         else:
             return 'Error writing to config', 500
+
+    # Обработка сообщений из CRM
+    elif event_value == 'ONIMCONNECTORMESSAGEADD':
+        response = bitrix.process_chat_message(config_data, request.form)
+        logger.info(f'ONIMCONNECTORMESSAGEADD{response}')
+    # При отключении или удалении от линии удалить линию из списка линий коннектора
+    elif event_value in ['ONIMCONNECTORSTATUSDELETE', 'ONIMCONNECTORLINEDELETE']:
+        response = bitrix.line_disconnection(config_data, request.form)
+        logger.info(response)
+
     else:
-        return 'Forbidden', 403
+        print(request.form)
     
+    service_value = request.args.get('service')
+    # Обработка SMS сообщений 
+    if service_value and service_value == 'messageservice':
+        bitrix.messageservice_processing(config_data, request.form)
+    return 'Success', 200
 
-@app.route('/bitrix', methods=['POST'])
-def b24_handler():
-    config_value = request.args.get('config')
-    bitrix24_domain = request.args.get('DOMAIN') or request.form.get('auth[domain]')
-
-    if config_value:
-        config_data = check_config_value(config_value, 'bitrix', bitrix24_domain)
-        if config_data:
-
-            # Обработка PLACEMENT
-            placement_value = request.form.get('PLACEMENT')
-            if placement_value and placement_value == 'SETTING_CONNECTOR':
-                placement_options = json.loads(request.form.get('PLACEMENT_OPTIONS', '{}'))            
-                response = bitrix.connector_activate(config_data, placement_options)
-                logger.info(response)
-                return response
-
-            # Обработка событий
-            event_value = request.form.get('event')
-            if event_value:
-                if  event_value == 'ONIMCONNECTORMESSAGEADD':
-                    response = bitrix.process_chat_message(config_data, request.form)
-                    logger.info(f'ONIMCONNECTORMESSAGEADD{response}')
-                # При отключении или удалении от линии удалить линию из списка линий коннектора
-                elif event_value in ['ONIMCONNECTORSTATUSDELETE', 'ONIMCONNECTORLINEDELETE']:
-                    response = bitrix.line_disconnection(config_data, request.form)
-                    logger.info(response)
-            
-            service_value = request.args.get('service')
-            if service_value and service_value == 'messageservice':
-                bitrix.messageservice_processing(config_data, request.form)
-            return 'Success', 200
-        return 'Forbidden', 403
-    return 'Forbidden', 403
-        
 
 @app.route('/whatsapp', methods=['GET', 'POST'])
 def wba_handler():
-    if request.method == 'GET':
-        config_value = request.args.get('config')
-        if config_value:
-            config_data = check_config_value(config_value)
-            if request.args.get("hub.mode") == 'subscribe':
-                verify_token = request.args.get("hub.verify_token")
-                if whatsapp.webhook_subscribe(config_data, verify_token):
-                    challenge = request.args.get("hub.challenge")
-                    return challenge, 200
-                
+    config_value = request.args.get('config')
+    if not config_value:
         return 'Forbidden', 403
+    config_data = check_config_value(config_value)
+    if not config_data:
+        return 'Forbidden', 403
+    if request.method == 'GET':    
+        if request.args.get("hub.mode") == 'subscribe':
+            verify_token = request.args.get("hub.verify_token")
+            if whatsapp.webhook_subscribe(config_data, verify_token):
+                challenge = request.args.get("hub.challenge")
+                return challenge, 200
+            else:
+                return 'Forbidden', 403
                 
     elif request.method == 'POST':
-
-        config_value = request.args.get('config')
-        if config_value: 
-            config_data = check_config_value(config_value)
-            response = whatsapp.message_processing(request.json['entry'][0], config_data)
-            logger.info(response)
-            return 'Success', 200
-        return 'Forbidden', 403
-
+        response = whatsapp.message_processing(request.json['entry'][0], config_data)
+        logger.info(response)
+        return 'Success', 200
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8000)
