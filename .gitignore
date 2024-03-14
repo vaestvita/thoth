@@ -165,3 +165,5 @@ test.py
 .vscode/*
 test/*
 logs/*
+/config.ini
+bitrix_users.json

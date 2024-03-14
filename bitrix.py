@@ -249,6 +249,7 @@ def messageservice_processing(config_data, message_data):
         else:
             print(f'Messenger type {messenger_type} is not supported or whatsapp_data is missing')
 
+
 def get_messenger_type_by_id(config_data, messenger_id):
     messengers = config_data.get('messengers', {})
     for messenger_type, messenger_list in messengers.items():
@@ -263,3 +264,143 @@ def get_messenger_type_by_id(config_data, messenger_id):
                 # Для неватсап мессенджеров возвращаем только тип
                 return messenger_type, None
     return None, None
+
+
+def send_notification(config_data, data):
+
+
+    notification_data = {
+
+        **data,
+        'ATTACH': []
+    }
+
+    crest.call_api('POST', 'im.notify.system.add', notification_data, config_data)
+
+
+# Интеграция с Asterisk
+
+import configparser
+import json
+import time
+
+config = configparser.ConfigParser()
+config.read('config.ini')
+
+CONFIG_FILE = config.get('bitrix', 'config_value')
+CONFIG_DATA = crest.get_params(CONFIG_FILE)
+BITRIX_USERS_FILE = 'bitrix_users.json'
+DEFAULT_USER_ID = config.get('bitrix', 'default_user_id')
+CRM_CREATE = config.get('bitrix', 'crm_create')
+SHOW_CARD = config.get('bitrix', 'show_card')
+
+
+def update_bitrix_users_file():
+    start = 0
+    bitrix_users = {}
+
+    while True:
+        response = crest.call_api('POST', 'user.get', {'ACTIVE': 'true', 'start': start}, CONFIG_DATA)
+        if 'result' in response:
+            users = response['result']
+            for user in users:
+                if user.get('UF_PHONE_INNER'):
+                    bitrix_users[user.get('ID')] = user.get('UF_PHONE_INNER')
+            start += len(users)
+            if 'next' not in response:
+                break
+        else:
+            print('Ошибка при получении списка пользователей', response)
+            break
+
+    with open(BITRIX_USERS_FILE, 'w') as file:
+        json.dump(bitrix_users, file)
+
+
+def get_user_info(user_id=None, user_phone=None):
+    for _ in range(2):
+        try:
+            with open(BITRIX_USERS_FILE, 'r') as file:
+                bitrix_users = json.load(file)
+        except Exception:
+            bitrix_users = {}
+            update_bitrix_users_file()
+            continue
+
+        if user_phone:
+            for key, value in bitrix_users.items():
+                if value == user_phone:
+                    return key, False
+
+        if user_id:
+            if user_id in bitrix_users:
+                return bitrix_users[user_id], False
+
+        break
+
+    default_value = DEFAULT_USER_ID if DEFAULT_USER_ID else next(iter(bitrix_users.keys()), None)
+    return default_value, True
+
+
+# Регистрация звонка в Битрикс24
+def register_call(bitrix_user_id, phone_number, call_type):
+    register_param = {
+        'USER_ID': bitrix_user_id,
+        'PHONE_NUMBER': phone_number,
+        'TYPE': call_type,
+        'SHOW': SHOW_CARD,
+        'CRM_CREATE': CRM_CREATE
+    }
+
+    call_data = crest.call_api('POST', 'telephony.externalcall.register', register_param, CONFIG_DATA)
+    if 'result' in call_data:
+        return call_data['result']['CALL_ID']
+    else:
+        print('ОШИБКА!!!!! register_call', phone_number, call_data)
+
+
+# Завершение звонка
+def finish_call(call_data, config_data=None):
+    finish_param = {
+        'CALL_ID': call_data.get('bitrix_call_id'),
+        'USER_ID': call_data.get('bitrix_user_id'),
+        'DURATION': round(time.time() - call_data.get('start_time', time.time())),
+        'STATUS_CODE': call_data.get('call_status')
+    }
+
+    if None in finish_param.values():  # Проверяем, есть ли None среди значений
+        print('Один из параметров равен None')
+        return False
+
+    config_to_use = config_data if config_data is not None else CONFIG_DATA
+    response = crest.call_api('POST', 'telephony.externalcall.finish', finish_param, config_to_use)
+    if 'result' in response:
+        return True
+    else:
+        print('ОШИБКА finish_call', response)
+        return False
+
+
+# Отправка файла записи
+def attachRecord(call_data, encoded_file):
+    file_data = {
+        'CALL_ID': call_data["bitrix_call_id"],
+        'FILENAME': call_data["file_name"],
+        'FILE_CONTENT': encoded_file
+    }
+
+    response = crest.call_api('POST', 'telephony.externalCall.attachRecord', file_data, CONFIG_DATA)
+
+
+# Показать/скрыть карточку
+def card_action(call_id, user_id, action, config_data=None):
+    if SHOW_CARD != '1' and action == 'show':
+        return
+
+    call_data = {
+        'CALL_ID': call_id,
+        'USER_ID': user_id
+    }
+    config_to_use = config_data if config_data is not None else CONFIG_DATA
+
+    response = crest.call_api('POST', f'telephony.externalcall.{action}', call_data, config_to_use)

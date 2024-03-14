@@ -3,8 +3,43 @@ import json
 import logging
 from logging.handlers import TimedRotatingFileHandler
 import os
+import configparser
 
-import crest, bitrix, whatsapp
+import threading
+import asyncio
+
+
+config_file = 'config.ini'
+config = configparser.ConfigParser()
+
+# Проверка, существует ли файл конфигурации
+if not os.path.exists(config_file):
+    config['asterisk'] = {'enabled': 'False'}
+    config['bitrix'] = {'config_value': '', 'default_user_id': '', 'crm_create': 0, 'show_card': 0}
+    with open(config_file, 'w') as configfile:
+        config.write(configfile)
+else:
+    config.read(config_file)
+
+import bitrix, crest, whatsapp
+
+# Подключение к Asterisk
+if config.getboolean('asterisk', 'enabled'):
+
+    from asterisk import manager
+    import asterisk
+
+    def run_ami_manager():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        loop.run_until_complete(
+            manager.connect(run_forever=True)
+        )
+    ami_thread = threading.Thread(target=run_ami_manager, daemon=True)
+    ami_thread.start()
+    print(' * Asterisk manager started')
+
 
 log_directory = "logs"
 if not os.path.exists(log_directory):
@@ -40,7 +75,7 @@ def project_info():
     if request.method == 'GET' or request.method == 'POST':
         info = {
             'App': {
-                'Name': 'Bitrix24 Integration Hub - Thoth',
+                'Name': 'Thoth: Bitrix24 Integration Hub',
                 'URL': 'https://github.com/vaestvita/thoth'
             },
             'Developer': {
@@ -99,10 +134,40 @@ def b24_handler():
     elif event_value == 'ONIMCONNECTORMESSAGEADD':
         response = bitrix.process_chat_message(config_data, request.form)
         logger.info(f'ONIMCONNECTORMESSAGEADD{response}')
+        
     # При отключении или удалении от линии удалить линию из списка линий коннектора
     elif event_value in ['ONIMCONNECTORSTATUSDELETE', 'ONIMCONNECTORLINEDELETE']:
         response = bitrix.line_disconnection(config_data, request.form)
         logger.info(response)
+
+    # Событие ClickToCall
+    elif event_value == 'ONEXTERNALCALLSTART':
+        user_id = request.form.get('data[USER_ID]')
+        call_id = request.form.get('data[CALL_ID]')
+        # Если Asterisk не подключен
+        if not config.getboolean('asterisk', 'enabled'):
+            # закрыть карточку
+            bitrix.card_action(call_id, user_id, 'hide', config_data)
+
+            # завершить звонок
+            call_data = {
+                'bitrix_call_id': call_id,
+                'bitrix_user_id': user_id,
+                'call_status': 403
+            }
+            bitrix.finish_call(call_data, config_data)
+
+            # Отправить уведомление
+            message_data = {
+                'MESSAGE': 'Asterisk не подключен. <br> Обратитесь в поддержку <a href="https://app.thoth.kz">app.thoth</a>',
+                'TO': user_id
+            }
+            bitrix.send_notification(config_data, message_data)
+            return 'Asterisk is not enabled', 500
+        extension, default = bitrix.get_user_info(user_id=user_id)
+        phone_num = request.form.get('data[PHONE_NUMBER]')
+        if not default:
+            asyncio.run(asterisk.initiate_call(extension, phone_num, call_id, user_id))
 
     else:
         print(request.form)
@@ -137,4 +202,4 @@ def wba_handler():
         return 'Success', 200
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8000)
+    app.run(debug=True, host='0.0.0.0', port=8000, use_reloader=False)

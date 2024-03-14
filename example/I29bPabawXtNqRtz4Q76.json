@@ -16,7 +16,7 @@
         "client_endpoint": "https://b24-XXXX.bitrix24.ru/rest/",
         "server_endpoint": "https://oauth.bitrix.info/rest/",
         "application_token": "1ea70a9846d18f076b1b76",
-        "scope": "crm,imopenlines,contact_center,user,disk,im,imconnector,messageservice",
+        "scope": "crm,imopenlines,user,messageservice,contact_center,disk,im,imconnector,telephony",
         "status": "L",
         "storage_id": 52,
         "connectors": [

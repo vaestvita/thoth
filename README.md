@@ -26,6 +26,21 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 + Пример настройки приложений [Flask с Gunicorn и Nginx на сервере Ubuntu](https://www.digitalocean.com/community/tutorials/how-to-serve-flask-applications-with-gunicorn-and-nginx-on-ubuntu-20-04)
 + Все последующие действия должны осуществляться при запущенном и корректно работающем приложении.
 
+```
+cd /opt
+git clone https://github.com/vaestvita/thoth
+cd thoth
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+sudo cp example/thoth.service /etc/systemd/system
+sudo systemctl daemon-reload
+sudo systemctl start thoth
+sudo systemctl enable thoth
+```
+
 ## Генерация конфигурационного файла и подключение коннектора 
 + Запустите файл [add_config](tools/add_config.py)
 ~~~
@@ -69,3 +84,36 @@ python tools/add_config.py
  + На портале - Быстрый старт > Настройка > URL обратного вызова
  + Введите адрес и Подтверждение маркера, выданные скриптом [add_whatsapp](tools/add_whatsapp.py)
  + Нажмите "Подтвердить и сохранить"
+
+
+ ### Подключение Asterisk (FreePBX, Yeastar, etc.)
+
+ - Протестировано на FreePBX (15, 16) с Asterisk (16, 18, 20)
+
+ - Одна инсталляция THOTH по умолчанию поддерживает, подключение к одному серверу Asterisk. Статистика о звонках будет отправляться только на один портал Битрикс24.
+
+ При первом запуске приложения в корне генерируется config.ini с параметром [enabled = false] в секции [asterisk]. 
+
+ [ПРАВА ЛОКАЛЬНОГО ПРИЛОЖЕНИЯ] - telephony, im, user, crm
+
+ + cel_general_custom.conf
+ ```
+[general]+
+apps=dial
+[manager]+
+enabled=yes
+ ```
+ + Заполните файл config.ini согласно [примеру](example/config.ini), подставив свои данные.
+ + Установите [enabled] = true
+ + Выберите портал Битрикс24 для интеграции. В значении [config_value] в секции [bitrix] укажите значение [config_key] из одного из файлов [кофигруации](example/I29bPabawXtNqRtz4Q76.json).
+ + Для доступа к файлам записей настройте свой вебсервер. Пример для [Apache](example/monitor.conf)
+ + Укажите контексты в [inbound_contexts] и [hangup_delisting]. Если используется FreePBX (15, 16) с Asterisk (16, 18, 20) "из коробки", то эти значения менять не нужно.
+ + [default_user_id] - ID пользователя битрикс24 к которому будут привязаны все потерянные звонки. Если оставить пустым, то будет использован ID первого активного пользователя в системе.
+ + Для работы [ClickToCall](https://dev.1c-bitrix.ru/rest_help/scope_telephony/telephony/events_telephone/index.php) запустите [event_bind](tools/event_bind.py), выберите конфигруцию, укажите код события [OnExternalCallStart]. Так же убедитесь, что в Битрикс24 локальное приложение THOTH уставновлено в поле "Номер для исходящего звонка по-умолчанию" в общих настройках телефонии.
+ + Перезапустите приложение 
+
+
+ #### Возможные проблемы
+
+ + При удаленном подключении к AMI иногда может теряться подключение. Попоробуйте запустить THOTH на сервере PBX или в той же локальной сети
+ + При манипуляциях с номерами как в битриксе так и в АТС желательно удалить файл bitrix_users.json в корне и перезапустить приложение. 
