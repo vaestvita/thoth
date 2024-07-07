@@ -88,7 +88,7 @@ def call_api(method, api_method, data, config_data):
         if method.upper() == 'GET':
             response = requests.get(f'{client_endpoint}{api_method}', params=request_data).json()
         elif method.upper() == 'POST':
-            response = requests.post(f'{client_endpoint}{api_method}', request_data).json()
+            response = requests.post(f'{client_endpoint}{api_method}', json=request_data).json()
         else:
             return {'error': f"Unsupported HTTP method: {method}"}
 
