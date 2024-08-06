@@ -1,0 +1,4 @@
+# DEBUG=True
+HOME_URL=https://app.thoth.kz
+ALLOWED_HOSTS=127.0.0.1,192.168.20.5,app.thoth.kz
+CSRF_TRUSTED_ORIGINS=https://app.thoth.kz
