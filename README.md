@@ -23,13 +23,13 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 
-python manage.py migrate
-python manage.py createsuperuser
-
 cp env_example .env 
 nano .env
 заменить HOME_URL, ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS на свои значения
 HOME_URL - домен по которму будет доступен thoth (example.com)
+
+python manage.py migrate
+python manage.py createsuperuser
 
 python manage.py runserver 0.0.0.0:8000
 
