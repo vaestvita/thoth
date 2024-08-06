@@ -1,0 +1,8 @@
+[Unit]
+Description=thoth socket
+
+[Socket]
+ListenStream=/run/thoth.sock
+
+[Install]
+WantedBy=sockets.target
