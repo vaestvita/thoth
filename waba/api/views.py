@@ -7,7 +7,7 @@ from waba.models import Waba, Phone
 from waba.utils import message_processing
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('django')
 
 class WabaWebhook(GenericViewSet, CreateModelMixin):
     queryset = Phone.objects.all()

@@ -32,6 +32,7 @@ def call_method(portal_domain: str, http_method: str, b24_method: str, data: dic
             refresh_token(portal)
             return call_method(portal_domain, http_method, b24_method, data)
 
+        logger.info(f'request ended: {response} {response.json()}')
         return response.json()
     
     except requests.HTTPError as http_exc:
@@ -60,5 +61,5 @@ def refresh_token(portal: Bitrix):
 
         return portal
     except Exception as e:
-        logger.error(f"Error refreshing token: {e}")
+        logger.error(f"Error refreshing token: {e}, response_data: {response_data if 'response_data' in locals() else 'No response data'}")
         return JsonResponse({"detail": str(e)}, status=500)

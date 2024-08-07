@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .models import Waba, Phone
 from bitrix.crest import call_method
+from bitrix.utils import messageservice_add
 
 @admin.register(Waba)
 class WabaAdmin(admin.ModelAdmin):
@@ -62,16 +63,22 @@ class PhoneAdmin(admin.ModelAdmin):
 
                 call_method(obj.waba.bitrix, 'POST', 'imconnector.activate', payload)
 
-    # Удаление открытой линии
+        # Регистрация SMS-провайдеа
+        api_key = request.user.auth_token.key
+        messageservice_add(obj.waba.bitrix, obj.phone, obj.line, api_key)
+                
+
+    # Удаление
     def delete_model(self, request, obj):
-        if obj.line:
-            payload = {'CONFIG_ID': obj.line}
-            call_method(obj.waba.bitrix, 'POST', 'imopenlines.config.delete', payload)
+        self._delete_related_lines_and_providers(obj)
         super().delete_model(request, obj)
 
     def delete_queryset(self, request, queryset):
         for obj in queryset:
-            if obj.line:
-                payload = {'CONFIG_ID': obj.line}
-                call_method(obj.waba.bitrix, 'POST', 'imopenlines.config.delete', payload)
+            self._delete_related_lines_and_providers(obj)
         super().delete_queryset(request, queryset)
+
+    def _delete_related_lines_and_providers(self, obj):
+        if obj.line:
+            call_method(obj.waba.bitrix, 'POST', 'imopenlines.config.delete', {'CONFIG_ID': obj.line})
+            call_method(obj.waba.bitrix, 'POST', 'messageservice.sender.delete', {'CODE': f'THOTH_WABA_{obj.phone}_{obj.line}'})

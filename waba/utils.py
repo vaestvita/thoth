@@ -146,25 +146,26 @@ def message_processing(request):
     statuses = value.get('statuses', [])
     for item in statuses:
         status_name = item.get('status')
-        callback_data = item.get('biz_opaque_callback_data')
-        line, chat_id, message_id = callback_data.split('_')
+        callback_data = item.get('biz_opaque_callback_data', None)
+        if callback_data:
+            line, chat_id, message_id = callback_data.split('_')
 
-        payload = {
-            'CONNECTOR': 'thoth_waba',
-            'LINE': line,
-            'MESSAGES': [
-                {
-                    'im': {
-                        'chat_id': chat_id,
-                        'message_id': message_id
+            payload = {
+                'CONNECTOR': 'thoth_waba',
+                'LINE': line,
+                'MESSAGES': [
+                    {
+                        'im': {
+                            'chat_id': chat_id,
+                            'message_id': message_id
+                        }
                     }
-                }
-            ]
-        }
+                ]
+            }
 
-        if status_name == 'delivered':
-            call_method(domain, 'POST', 'imconnector.send.status.delivery', payload)
-        elif status_name == 'read':
-            call_method(domain, 'POST', 'imconnector.send.status.reading', payload)
+            if status_name == 'delivered':
+                call_method(domain, 'POST', 'imconnector.send.status.delivery', payload)
+            elif status_name == 'read':
+                call_method(domain, 'POST', 'imconnector.send.status.reading', payload)
 
     return Response({"status": "received"}, status=status.HTTP_200_OK)
