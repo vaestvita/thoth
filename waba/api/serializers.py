@@ -9,4 +9,4 @@ class WabaSerializer(serializers.ModelSerializer):
 class PhoneSerializer(serializers.ModelSerializer):
     class Meta:
         model = Phone
-        fields = ['phone', 'phone_id', 'waba', 'owner', 'line']
+        fields = ['phone', 'phone_id', 'sms_service', 'waba', 'owner', 'line']

@@ -15,6 +15,8 @@ class Waba(models.Model):
 class Phone(models.Model):
     phone = models.CharField(max_length=20, unique=True)
     phone_id = models.CharField(max_length=50, unique=True)
+    sms_service = models.BooleanField(default=False)
+    old_sms_service = models.BooleanField(default=False)
     waba = models.ForeignKey(Waba, on_delete=models.CASCADE, related_name='phones')
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     line = models.CharField(max_length=20, blank=True)

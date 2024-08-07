@@ -32,9 +32,9 @@ class WabaAdmin(admin.ModelAdmin):
 
 @admin.register(Phone)
 class PhoneAdmin(admin.ModelAdmin):
-    list_display = ('phone', 'phone_id', 'owner', 'waba', 'line')
+    list_display = ('phone', 'phone_id', 'owner', 'waba', 'line', 'sms_service')
     search_fields = ('phone', 'phone_id')
-    fields = ('phone', 'phone_id', 'waba', 'owner', 'line')
+    fields = ('phone', 'phone_id', 'waba', 'owner', 'line', 'sms_service')
     readonly_fields = ('line',)
 
     def save_model(self, request, obj, form, change):
@@ -63,9 +63,16 @@ class PhoneAdmin(admin.ModelAdmin):
 
                 call_method(obj.waba.bitrix, 'POST', 'imconnector.activate', payload)
 
-        # Регистрация SMS-провайдеа
-        api_key = request.user.auth_token.key
-        messageservice_add(obj.waba.bitrix, obj.phone, obj.line, api_key)
+        
+        # Регистрация SMS-провайдера
+        if obj.sms_service and not obj.old_sms_service:
+            api_key = request.user.auth_token.key
+            messageservice_add(obj.waba.bitrix, obj.phone, obj.line, api_key)
+        elif not obj.sms_service and obj.old_sms_service:
+            call_method(obj.waba.bitrix, 'POST', 'messageservice.sender.delete', {'CODE': f'THOTH_WABA_{obj.phone}_{obj.line}'})
+
+        obj.old_sms_service = obj.sms_service
+        obj.save()
                 
 
     # Удаление
