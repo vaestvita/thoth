@@ -18,7 +18,7 @@ class WabaAdmin(admin.ModelAdmin):
         for phone in obj.phones.all():
             if phone.line:
                 payload = {'CONFIG_ID': phone.line}
-                call_method(phone.waba.bitrix, 'POST', 'imopenlines.config.delete', payload)
+                call_method(phone.waba.bitrix, 'imopenlines.config.delete', payload)
         super().delete_model(request, obj)
 
     def delete_queryset(self, request, queryset):
@@ -26,7 +26,7 @@ class WabaAdmin(admin.ModelAdmin):
             for phone in obj.phones.all():
                 if phone.line:
                     payload = {'CONFIG_ID': phone.line}
-                    call_method(phone.waba.bitrix, 'POST', 'imopenlines.config.delete', payload)
+                    call_method(phone.waba.bitrix, 'imopenlines.config.delete', payload)
         super().delete_queryset(request, queryset)
 
 
@@ -48,7 +48,7 @@ class PhoneAdmin(admin.ModelAdmin):
                 }
             }
 
-            create_line = call_method(obj.waba.bitrix, 'POST', 'imopenlines.config.add', line_data)
+            create_line = call_method(obj.waba.bitrix, 'imopenlines.config.add', line_data)
 
             # активация открытой линии
             if 'result' in create_line:
@@ -61,7 +61,7 @@ class PhoneAdmin(admin.ModelAdmin):
                     'ACTIVE': 1
                 }
 
-                call_method(obj.waba.bitrix, 'POST', 'imconnector.activate', payload)
+                call_method(obj.waba.bitrix, 'imconnector.activate', payload)
 
         
         # Регистрация SMS-провайдера
@@ -69,7 +69,7 @@ class PhoneAdmin(admin.ModelAdmin):
             api_key = request.user.auth_token.key
             messageservice_add(obj.waba.bitrix, obj.phone, obj.line, api_key)
         elif not obj.sms_service and obj.old_sms_service:
-            call_method(obj.waba.bitrix, 'POST', 'messageservice.sender.delete', {'CODE': f'THOTH_WABA_{obj.phone}_{obj.line}'})
+            call_method(obj.waba.bitrix, 'messageservice.sender.delete', {'CODE': f'THOTH_WABA_{obj.phone}_{obj.line}'})
 
         obj.old_sms_service = obj.sms_service
         obj.save()
@@ -87,5 +87,5 @@ class PhoneAdmin(admin.ModelAdmin):
 
     def _delete_related_lines_and_providers(self, obj):
         if obj.line:
-            call_method(obj.waba.bitrix, 'POST', 'imopenlines.config.delete', {'CONFIG_ID': obj.line})
-            call_method(obj.waba.bitrix, 'POST', 'messageservice.sender.delete', {'CODE': f'THOTH_WABA_{obj.phone}_{obj.line}'})
+            call_method(obj.waba.bitrix, 'imopenlines.config.delete', {'CONFIG_ID': obj.line})
+            call_method(obj.waba.bitrix, 'messageservice.sender.delete', {'CODE': f'THOTH_WABA_{obj.phone}_{obj.line}'})

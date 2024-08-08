@@ -1,6 +1,7 @@
 import os
 import re
 import base64
+import logging
 import json
 from rest_framework import status
 from rest_framework.response import Response
@@ -12,6 +13,8 @@ from .models import Bitrix
 from waba.models import Waba, Phone
 
 from .crest import call_method
+
+logger = logging.getLogger('django')
 
 HOME_URL = env('HOME_URL')
 EVENTS = ['ONIMCONNECTORMESSAGEADD', 'ONIMCONNECTORLINEDELETE', 'ONIMCONNECTORSTATUSDELETE']
@@ -40,7 +43,7 @@ def register_connector(domain, api_key):
         'PLACEMENT_HANDLER': f'{HOME_URL}/api/bitrix/?api-key={api_key}'
     }
 
-    call_method(domain, 'POST', 'imconnector.register', payload)
+    call_method(domain, 'imconnector.register', payload)
 
     # Подписка на события
     for event in EVENTS:
@@ -50,7 +53,7 @@ def register_connector(domain, api_key):
             'HANDLER': f'{HOME_URL}/api/bitrix/?api-key={api_key}'
         }
 
-        call_method(domain, 'POST', 'event.bind', payload)
+        call_method(domain, 'event.bind', payload)
 
 
 # Регистрация SMS-провайдера
@@ -63,7 +66,7 @@ def messageservice_add(domain, phone, line, api_key):
         'HANDLER': f'{HOME_URL}/api/bitrix/?api-key={api_key}'
     }
 
-    return call_method(domain, 'POST', 'messageservice.sender.add', payload)
+    return call_method(domain, 'messageservice.sender.add', payload)
 
 
 
@@ -95,7 +98,7 @@ def event_processor(self, request):
             placement_options = json.loads(placement_options)
             domain = request.query_params.get('DOMAIN', {})
             line = placement_options.get('LINE')
-            line_data = call_method(domain, 'POST', 'imopenlines.config.get', {'CONFIG_ID': line})
+            line_data = call_method(domain, 'imopenlines.config.get', {'CONFIG_ID': line})
             if 'result' in line_data:
                 _, phone_number = line_data['result']['LINE_NAME'].split('_')
                 phone = Phone.objects.filter(phone=phone_number).first()
@@ -109,7 +112,7 @@ def event_processor(self, request):
                         'ACTIVE': 1
                     }
 
-                    call_method(domain, 'POST', 'imconnector.activate', payload)
+                    call_method(domain, 'imconnector.activate', payload)
 
             return Response({"status": "message processed"}, status=status.HTTP_200_OK)
         
@@ -139,12 +142,12 @@ def event_processor(self, request):
                 # Create the portal with the domain and access token
                 serializer = self.get_serializer(data=data)
                 if not serializer.is_valid():
-                    print("Serializer Errors: ", serializer.errors)
+                    logger.error("Serializer Errors: ", serializer.errors)
                     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
                 self.perform_create(serializer)
 
-                storage_id_data = call_method(domain, 'POST', 'disk.storage.getforapp', {})
+                storage_id_data = call_method(domain, 'disk.storage.getforapp', {})
                 storage_id = storage_id_data['result']['ID']
 
                 portal = Bitrix.objects.get(domain=domain)
@@ -206,9 +209,9 @@ def event_processor(self, request):
                 message['document'] = {'link': file_link}
                 message['document']['filename'] = request.data.get('data[MESSAGES][0][message][files][0][name]')
 
-            user_list = call_method(domain, 'POST', 'im.chat.user.list', {'CHAT_ID': chat_id})
+            user_list = call_method(domain, 'im.chat.user.list', {'CHAT_ID': chat_id})
             if user_list:
-                users = call_method(domain, 'POST', 'im.user.list.get', {'ID': user_list['result']})
+                users = call_method(domain, 'im.user.list.get', {'ID': user_list['result']})
                 phones = get_personal_mobile(users['result'])
 
                 send_message(domain, message, line, phones)
@@ -230,5 +233,5 @@ def event_processor(self, request):
             return Response({"error": "Unsupported event"}, status=status.HTTP_400_BAD_REQUEST)
 
     except Exception as e:
-        print(f"Error occurred: {str(e)}")
+        logger.error(f"Error occurred: {str(e)}")
         return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

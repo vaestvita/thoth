@@ -64,7 +64,7 @@ def get_file(access_token, media_id, filename, domain, storage_id):
         'data': {'NAME': f'{media_id}_{filename}'}
     }
 
-    upload_to_bitrix = call_method(domain, 'POST', 'disk.storage.uploadfile', payload)
+    upload_to_bitrix = call_method(domain, 'disk.storage.uploadfile', payload)
     if 'result' in upload_to_bitrix:
         return upload_to_bitrix['result']['DOWNLOAD_URL']
     else:
@@ -141,7 +141,7 @@ def message_processing(request):
             contacts = value['messages'][0]['contacts']
             message_data['MESSAGES'][0]['message']['text'] = format_contacts(contacts)
 
-        call_method(domain, 'POST', 'imconnector.send.messages', message_data)
+        call_method(domain, 'imconnector.send.messages', message_data)
 
     statuses = value.get('statuses', [])
     for item in statuses:
@@ -164,8 +164,8 @@ def message_processing(request):
             }
 
             if status_name == 'delivered':
-                call_method(domain, 'POST', 'imconnector.send.status.delivery', payload)
+                call_method(domain, 'imconnector.send.status.delivery', payload)
             elif status_name == 'read':
-                call_method(domain, 'POST', 'imconnector.send.status.reading', payload)
+                call_method(domain, 'imconnector.send.status.reading', payload)
 
     return Response({"status": "received"}, status=status.HTTP_200_OK)
