@@ -19,6 +19,7 @@ def call_method(portal_domain: str, http_method: str, b24_method: str, data: dic
 
     try:
         payload = {'auth': auth_token, **data}
+        logger.info(f'Data send to b24: {payload}')
         if http_method == 'GET':
             url = f"{endpoint}/{b24_method}"
             response = requests.get(url, params=payload)
