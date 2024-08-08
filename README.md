@@ -38,6 +38,10 @@ python manage.py runserver 0.0.0.0:8000
 
 После запуска сервера в файле .env будет создан ADMIN_URL, который необходимо исопльзовать для входа в админку
 
+## Прокси сервер 
++ Процесс настройи Nginx и Gunicorn можно посомтреть [здесь](https://www.digitalocean.com/community/tutorials/how-to-set-up-django-with-postgres-nginx-and-gunicorn-on-ubuntu)
++ Примеры файлов конфигураций есть в [документации](docs/example)
+
 ## Подключение 
 
 + [Битрикс](docs/bitrix.md)
