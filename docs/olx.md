@@ -11,7 +11,7 @@
 ## Создание приложения 
 + Зарегистрируйтесь как разработчик на портале https://developer.olxgroup.com/register?market=olx
 + My OLX > Apps > заполнить поля. 
-+ + Поле 'Redirect uri' - https://app.thoth.com/api/olx/authorization/
++ + Поле 'Redirect uri' - https://example.com/api/olx/authorization/
 
 ![app](img/olx-dev.png)
 + Дождитесь подтверждения регистрации приложения. После чего вам будут доступны Client ID и Client Secret
