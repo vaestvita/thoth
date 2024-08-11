@@ -3,8 +3,9 @@ from rest_framework.viewsets import GenericViewSet
 
 from bitrix.models import Bitrix
 from .serializers import PortalSerializer
+from rest_framework.renderers import JSONRenderer
 
-from bitrix.utils import event_processor
+from ..utils import event_processor, process_placement
 
 
 class PortalViewSet(CreateModelMixin, GenericViewSet, ListModelMixin):
@@ -13,4 +14,12 @@ class PortalViewSet(CreateModelMixin, GenericViewSet, ListModelMixin):
 
     def create(self, request, *args, **kwargs):
 
-        return event_processor(self, request)
+        return  event_processor(self, request)
+    
+
+class PlacementOptionsViewSet(GenericViewSet, CreateModelMixin):
+    renderer_classes = [JSONRenderer]
+    def get_queryset(self):
+        return Bitrix.objects.none()  
+    def create(self, request, *args, **kwargs):
+        return process_placement(request)

@@ -5,27 +5,29 @@ import logging
 import json
 from rest_framework import status
 from rest_framework.response import Response
-
-from waba.utils import send_message
-
 from thoth.settings import env
-from .models import Bitrix
-from waba.models import Waba, Phone
 
+from .models import Bitrix, Line
 from .crest import call_method
+
+import waba.utils
+from waba.models import Waba, Phone
+from olx.models import OlxUser
+
+import olx.utills
 
 logger = logging.getLogger('django')
 
 HOME_URL = env('HOME_URL')
 EVENTS = ['ONIMCONNECTORMESSAGEADD', 'ONIMCONNECTORLINEDELETE', 'ONIMCONNECTORSTATUSDELETE']
+CONNECTORS = ['waba', 'olx']
 
 
-
-def thoth_logo():
+def thoth_logo(connetor):
     dir = os.path.dirname(os.path.abspath(__file__))
-    waba_logo = os.path.join(dir, 'img', 'WhatsApp.svg')
+    image = os.path.join(dir, 'img', f'{connetor}.svg')
 
-    with open(waba_logo, 'rb') as file:
+    with open(image, 'rb') as file:
         image_data = file.read()
         encoded_image = base64.b64encode(image_data).decode('utf-8')
         return f"data:image/svg+xml;base64,{encoded_image}"
@@ -34,16 +36,18 @@ def thoth_logo():
 # Регистрация коннектора
 def register_connector(domain, api_key):
 
-    payload = {
-        'ID': 'thoth_waba',
-        'NAME': 'THOTH WABA',
-        'ICON': {
-            'DATA_IMAGE': thoth_logo()
-        },
-        'PLACEMENT_HANDLER': f'{HOME_URL}/api/bitrix/?api-key={api_key}'
-    }
+    for connetor in CONNECTORS:
 
-    call_method(domain, 'imconnector.register', payload)
+        payload = {
+            'ID': f'thoth_{connetor}',
+            'NAME': f'THOTH {connetor.upper()}',
+            'ICON': {
+                'DATA_IMAGE': thoth_logo(connetor)
+            },
+            'PLACEMENT_HANDLER': f'{HOME_URL}/api/bitrix/placement/?api-key={api_key}'
+        }
+
+        call_method(domain, 'imconnector.register', payload)
 
     # Подписка на события
     for event in EVENTS:
@@ -81,41 +85,119 @@ def get_personal_mobile(users):
     return personal_mobiles
 
 
+def extract_files(data):
+    files = []
+    i = 0
+    while True:
+        # Формируем ключи для доступа к данным файлов
+        name_key = f"data[MESSAGES][0][message][files][{i}][name]"
+        link_key = f"data[MESSAGES][0][message][files][{i}][link]"
+        type_key = f"data[MESSAGES][0][message][files][{i}][type]"
 
-def event_processor(self, request):
+        # Проверяем, существуют ли такие ключи в словаре
+        if name_key in data and link_key in data:
+
+            # Добавляем название и ссылку в список
+            files.append({
+                "name": data.get(name_key),
+                "link": data.get(link_key),
+                "type": data.get(type_key),
+            })
+            i += 1
+        else:
+            break
+
+    return files
+
+
+def process_placement(request):
     try:
-        event = request.data.get('event', {})
-        domain = request.data.get('auth[domain]', {})
-        client_endpoint = request.data.get('auth[client_endpoint]', {})
-        access_token = request.data.get('auth[access_token]', {})
-        refresh_token = request.data.get('auth[refresh_token]', {})
-        application_token = request.data.get('auth[application_token]', {})
-        api_key = request.query_params.get('api-key', {})
-        placement_options = request.data.get('PLACEMENT_OPTIONS', {})
-        sms_msg = request.data.get('type', {})
+        data = request.data
+        placement_options = data.get('PLACEMENT_OPTIONS', {})
+        domain = request.query_params.get('DOMAIN', {})
+        
+        if not placement_options:
+            return Response({"error": "PLACEMENT_OPTIONS is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if placement_options:
-            placement_options = json.loads(placement_options)
-            domain = request.query_params.get('DOMAIN', {})
-            line = placement_options.get('LINE')
-            line_data = call_method(domain, 'imopenlines.config.get', {'CONFIG_ID': line})
-            if 'result' in line_data:
-                _, phone_number = line_data['result']['LINE_NAME'].split('_')
-                phone = Phone.objects.filter(phone=phone_number).first()
+        placement_options = json.loads(placement_options)
+        line_id = placement_options.get('LINE')
+        connector = placement_options.get('CONNECTOR')
+
+        line_data = call_method(domain, 'imopenlines.config.get', {'CONFIG_ID': line_id})
+        if 'result' in line_data:
+            portal = Bitrix.objects.filter(domain=domain).first()
+
+            if not portal:
+                return Response({"error": "Domain not found"}, status=status.HTTP_400_BAD_REQUEST) 
+            
+            if connector == 'thoth_waba':
+                try:
+                    _, element_id = line_data['result']['LINE_NAME'].split('_')
+
+                except ValueError as e:
+                    logger.error(f"Error parsing LINE_NAME: {e}")
+                    return Response({"error": "Invalid LINE_NAME format. Correct is THOTH_XXXXXXXXX"}, status=status.HTTP_400_BAD_REQUEST)
+                phone = Phone.objects.filter(phone=element_id).first()
                 if phone:
+                    # Создаем или получаем линию и связываем с объектом Phone
+                    line, created = Line.objects.get_or_create(
+                        line_id=line_id,
+                        portal=portal,
+                        defaults={'content_object': phone}
+                    )
+                    if not created:
+                        line.content_object = phone
+                        line.save()
                     phone.line = line
                     phone.save()
 
-                    payload = {
-                        'CONNECTOR': placement_options.get('CONNECTOR'),
-                        'LINE': line,
-                        'ACTIVE': 1
-                    }
+            elif connector == 'thoth_olx':
+                try:                        
+                    _, _, element_id = line_data['result']['LINE_NAME'].split('_')
+                except ValueError as e:
+                    logger.error(f"Error parsing LINE_NAME: {e}")
+                    return Response({"error": "Invalid LINE_NAME format. Correct is THOTH_OLX_XXXXX"}, status=status.HTTP_400_BAD_REQUEST)
+                olxuser = OlxUser.objects.filter(olx_id=element_id).first()
+                if olxuser:
+                    # Создаем или получаем линию и связываем с объектом OlxUser
+                    line, created = Line.objects.get_or_create(
+                        line_id=line_id,
+                        portal=portal,
+                        defaults={'content_object': olxuser}
+                    )
+                    if not created:
+                        line.content_object = olxuser
+                        line.save()
+                    olxuser.line = line
+                    olxuser.save()
 
-                    call_method(domain, 'imconnector.activate', payload)
+            payload = {
+                'CONNECTOR': connector,
+                'LINE': line_id,
+                'ACTIVE': 1
+            }
 
-            return Response({"status": "message processed"}, status=status.HTTP_200_OK)
-        
+            resp = call_method(domain, 'imconnector.activate', payload)
+
+            return Response(resp, status=status.HTTP_200_OK)        
+
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+def event_processor(self, request):
+    try:
+        data = request.data
+        event = data.get('event', {})
+        domain = data.get('auth[domain]', {})
+        client_endpoint = data.get('auth[client_endpoint]', {})
+        access_token = data.get('auth[access_token]', {})
+        refresh_token = data.get('auth[refresh_token]', {})
+        application_token = data.get('auth[application_token]', {})
+        api_key = request.query_params.get('api-key', {})
+        sms_msg = data.get('type', {})
+      
         if not domain:
             return Response({"error": "Domain is required"}, status=status.HTTP_400_BAD_REQUEST)
         if not access_token:
@@ -165,69 +247,145 @@ def event_processor(self, request):
         # Messages from SMS gate
         if sms_msg == 'SMS':
             phones = []
-            message_to = request.data.get('message_to', {})
+            message_to = data.get('message_to', {})
             phones.append(message_to)
-            template, language = request.data.get('message_body', {}).split('+')
+            template, language = data.get('message_body', {}).split('+')
             message = {
                 'type': 'template',
                 'template': {'name': template, 'language': {'code': language}}
             }
-            code = request.data.get('code', {})
+            code = data.get('code', {})
             line = re.search(r'_(\d+)$', code).group(1)
 
-            send_message(domain, message, line, phones)
+            waba.utils.send_message(domain, message, line, phones)
             return Response({"status": "message processed"}, status=status.HTTP_200_OK)
 
         # Обработка события ONIMCONNECTORMESSAGEADD
         if event == 'ONIMCONNECTORMESSAGEADD':
-            message = {}
-            line = request.data.get('data[LINE]', {})
-            chat_id = request.data.get('data[MESSAGES][0][im][chat_id]')
-            message_id = request.data.get('data[MESSAGES][0][im][message_id]')
-            message['biz_opaque_callback_data'] = f'{line}_{chat_id}_{message_id}'
-            file_type = request.data.get('data[MESSAGES][0][message][files][0][type]', None)
-            file_link = request.data.get('data[MESSAGES][0][message][files][0][link]', None)
-            if not file_type:
-                text = request.data.get('data[MESSAGES][0][message][text]')
+            connector = data.get('data[CONNECTOR]')
+            line = data.get('data[LINE]', {})
+            chat_id = data.get('data[MESSAGES][0][chat][id]')
+            message_id = data.get('data[MESSAGES][0][im][message_id]')
+            file_type = data.get('data[MESSAGES][0][message][files][0][type]', None)
+            text = data.get('data[MESSAGES][0][message][text]', None)
+            if text:
                 text = re.sub(r'\[(?!(br|\n))[^\]]+\]', '', text)
+                text = text.replace('[br]', '\n')
+
+            files = []
+            if file_type:
+                files = extract_files(data)
+
+            # If WABA connector
+            if connector == 'thoth_waba':
+                chat_id = data.get('data[MESSAGES][0][im][chat_id]')
+                message = {
+                    'biz_opaque_callback_data': f'{line}_{chat_id}_{message_id}',
+                }
+
+                if not files and text:
+                    message['type'] = 'text'
+                    message['text'] = {'body': text}
+
+                # Обработка шаблонных сообщений
                 if 'template-' in text:
                     _, template_body = text.split('-')
                     template, language = template_body.split('+')
                     message['type'] = 'template'
                     message['template'] = {'name': template, 'language': {'code': language}}
+
+                # Получаем список пользователей и номера телефонов
+                user_list = call_method(domain, 'im.chat.user.list', {'CHAT_ID': chat_id})
+                if user_list:
+                    users = call_method(domain, 'im.user.list.get', {'ID': user_list['result']})
+                    phones = get_personal_mobile(users['result'])
+
+                    # Если есть файлы, отправляем сообщение с каждым файлом отдельно
+                    if files:
+                        for file in files:
+                            file_message = message.copy()
+                            
+                            # Определяем тип файла и добавляем его к сообщению
+                            if file['type'] == 'image':
+                                file_message['type'] = 'image'
+                                file_message['image'] = {'link': file['link']}
+                            elif file['type'] in ['file', 'video', 'audio']:
+                                file_message['type'] = 'document'
+                                file_message['document'] = {
+                                    'link': file['link'],
+                                    'filename': file['name']
+                                }
+                            
+                            waba.utils.send_message(domain, file_message, line, phones)
+                    else:
+                        # Если файлов нет, отправляем только текстовое сообщение
+                        waba.utils.send_message(domain, message, line, phones)
+            
+            # If OLX connector
+            elif connector == 'thoth_olx':
+                resp = olx.utills.send_message(chat_id, text, files)
+                if resp.status_code == 200:
+
+                    payload = {
+                        'CONNECTOR': 'thoth_olx',
+                        'LINE': line,
+                        'MESSAGES': [
+                            {
+                                'im': {
+                                    'chat_id': chat_id,
+                                    'message_id': message_id
+                                }
+                            }
+                        ]
+                    }
+
+                    call_method(domain, 'imconnector.send.status.delivery', payload)
+                
                 else:
-                    text = text.replace('[br]', '\n')
-                    message['type'] = 'text'
-                    message['text'] = {'body': text}
+                    error_text = resp.json()['error']['detail']
+                    _, _, interlocutor_id = chat_id.split('-')
 
-            elif file_type in ['image']:
-                message['type'] = file_type
-                message[file_type] = {'link': file_link}
+                    payload = {
+                        'CONNECTOR': 'thoth_olx',
+                        'LINE': line,
+                        'MESSAGES': [
+                            {
+                                'user': {
+                                    'id': interlocutor_id,
+                                },
+                                'chat': {
+                                    'id': chat_id,
+                                },
+                                'message': {
+                                    'text': f'This is a response from the OLX server: {error_text}'
+                                }
+                            }
+                        ]
+                    }
 
-            else:
-                message['type'] = 'document'
-                message['document'] = {'link': file_link}
-                message['document']['filename'] = request.data.get('data[MESSAGES][0][message][files][0][name]')
+                    call_method(domain, 'imconnector.send.messages', payload)
 
-            user_list = call_method(domain, 'im.chat.user.list', {'CHAT_ID': chat_id})
-            if user_list:
-                users = call_method(domain, 'im.user.list.get', {'ID': user_list['result']})
-                phones = get_personal_mobile(users['result'])
-
-                send_message(domain, message, line, phones)
 
             return Response({"status": "ONIMCONNECTORMESSAGEADD event processed"}, status=status.HTTP_200_OK)
 
         
         elif event == 'ONIMCONNECTORSTATUSDELETE':
-            line = request.data.get('data[line]')
-            phone = Phone.objects.filter(waba__bitrix__domain=domain, line=line).first()
-            if phone:
-                phone.line = ''
-                phone.save()
+            line_id = data.get('data[line]')
+            line = Line.objects.filter(line_id=line_id, portal__domain=domain).first()
+            if line:
+                content_object = line.content_object
+                if isinstance(content_object, Phone) or isinstance(content_object, OlxUser):
+                    content_object.line = None
+                    content_object.save()
+                line.delete()
                 return Response({"status": "Line cleared"}, status=status.HTTP_200_OK)
             else:
                 return Response({"error": "Line not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        
+        elif event == 'ONIMCONNECTORLINEDELETE':
+            line = data.get('data')
+            return Response({"status": "Line cleared"}, status=status.HTTP_200_OK)
         
         else:
             return Response({"error": "Unsupported event"}, status=status.HTTP_400_BAD_REQUEST)

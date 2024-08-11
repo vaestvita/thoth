@@ -22,8 +22,11 @@ env = environ.Env()
 BASE_DIR = Path(__file__).resolve().parent.parent
 env.read_env(str(BASE_DIR / ".env"))
 
+HOME_URL = env('HOME_URL')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
+
+X_FRAME_OPTIONS = 'ALLOWALL'
 
 # SECURITY WARNING: keep the secret key used in production secret!
 
@@ -55,6 +58,14 @@ ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1'])
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS')
 
 
+# Celery Configuration Options
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+CELERY_TIMEZONE = "UTC"
+CELERY_TASK_TRACK_STARTED = True
+CELERY_BROKER_URL = "redis://localhost:6379"
+CELERY_RESULT_BACKEND = "redis://localhost:6379"
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -67,9 +78,12 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'rest_framework',
     'rest_framework.authtoken',
+    'django_celery_beat',
     'corsheaders',
     'bitrix',
     'waba',
+    'olx',
+    
 ]
 
 MIDDLEWARE = [
@@ -88,7 +102,10 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.TokenAuthentication",
         "thoth.qpta.QueryParamTokenAuthentication",
     ),
-    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+        "rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly",
+    ),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
@@ -183,10 +200,15 @@ LOGGING = {
             'level': LOG_LEVEL,
             'propagate': True,
         },
-        'waba.views': {
+        'waba': {
             'handlers': ['console'],
             'level': LOG_LEVEL,
             'propagate': True,
         },
+        'olx' : {
+            'handlers': ['console'],
+            'level': LOG_LEVEL,
+            'propagate': True,
+        }
     },
 }

@@ -39,10 +39,18 @@ python manage.py runserver 0.0.0.0:8000
 После запуска сервера в файле .env будет создан ADMIN_URL, который необходимо исопльзовать для входа в админку
 
 ## Прокси сервер 
-+ Процесс настройи Nginx и Gunicorn можно посмотреть [здесь](https://www.digitalocean.com/community/tutorials/how-to-set-up-django-with-postgres-nginx-and-gunicorn-on-ubuntu)
++ Процесс настройки Nginx и Gunicorn можно посмотреть [здесь](https://www.digitalocean.com/community/tutorials/how-to-set-up-django-with-postgres-nginx-and-gunicorn-on-ubuntu)
 + Примеры файлов конфигураций есть в [документации](docs/example)
+
+## Логирование 
+При необходимости можно включить подробные логи в консоль. Для этого в файле .env укажите уровень логиования LOG_LEVEL=DEBUG, перезапустите thoth и введите команду 
+
+```
+journalctl -u thoth -f
+```
 
 ## Подключение 
 
 + [Битрикс](docs/bitrix.md)
 + [WABA](docs/waba.md)
++ [OLX](docs/olx.md)

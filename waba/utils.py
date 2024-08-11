@@ -3,16 +3,13 @@ import base64
 from rest_framework.response import Response
 from rest_framework import status
 from bitrix.crest import call_method
+from bitrix.models import Line
 from waba.models import Waba, Phone
+import logging
 
 FB_URL = 'https://graph.facebook.com/v19.0/'
+logger = logging.getLogger('django')
 
-def get_waba_by_domain_and_line(domain, line):
-    try:
-        waba = Waba.objects.get(bitrix__domain=domain, phones__line=line)
-        return waba
-    except Waba.DoesNotExist:
-        return None
 
 def send_whatsapp_message(access_token, phone_number_id, to, message):
     url = f'{FB_URL}{phone_number_id}/messages'
@@ -25,26 +22,38 @@ def send_whatsapp_message(access_token, phone_number_id, to, message):
     response = requests.post(url, json=payload, headers=headers)
     return response
 
-def send_message(domain, message, line, phones):
-    waba = get_waba_by_domain_and_line(domain, line)
+
+def send_message(domain, message, line_id, phones):
+    # Найти объект Line по line_id и домену
+    line = Line.objects.filter(line_id=line_id, portal__domain=domain).first()
+
+    if not line:
+        logger.error(f'Line ID {line_id} not found')
+        return Response({f'Line ID {line_id} not found'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Найти объект Waba, связанный с этим Line
+    waba = Waba.objects.filter(bitrix__domain=domain, phones__line=line).first()
     if not waba:
         return None
     
     access_token = waba.access_token
+    # Найти номер телефона, связанный с Line
     phone_number = waba.phones.filter(line=line).first()
     phone_number_id = phone_number.phone_id if phone_number else None
 
     if not phone_number_id:
         return None
 
+    # Отправка сообщения на каждый телефон
     for phone in phones:
         response = send_whatsapp_message(access_token, phone_number_id, phone, message)
         if response.status_code != 200:
-            print(f"Failed to send message to {phone}: {response.json()}")
+            logger.error(f"Failed to send message to {phone}: {response.json()}")
+            return Response({f"Failed to send message to {phone}: {response.json()}"}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            print(f"Message sent to {phone}")
+            logger.info(f"Message sent to {phone}")
+            return Response({f"Message sent to {phone}"}, status=status.HTTP_200_OK)
 
-    return Response({"status": "messages sent"}, status=status.HTTP_200_OK)
 
 def get_file(access_token, media_id, filename, domain, storage_id):
     headers = {'Authorization': f'Bearer {access_token}'}
@@ -103,7 +112,7 @@ def message_processing(request):
 
     try:
         phone = Phone.objects.get(phone_id=phone_number_id)
-        message_data['LINE'] = phone.line
+        message_data['LINE'] = phone.line.line_id
         waba = phone.waba
         domain = waba.bitrix.domain  # Получение значения domain из связанной модели Bitrix24Portal
         access_token = waba.access_token

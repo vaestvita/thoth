@@ -22,6 +22,9 @@ from drf_spectacular.views import SpectacularSwaggerView
 
 from views import home_view
 from thoth.settings import env
+from olx.api.views import OlxAuthorizationAPIView
+
+from bitrix.api.views import PlacementOptionsViewSet
 
 ADMIN_URL=env('ADMIN_URL', default='admin/')
 PORTAL_NAME = 'THOTH'
@@ -43,7 +46,9 @@ urlpatterns += [
         SpectacularSwaggerView.as_view(url_name="api-schema"),
         name="api-docs",
     ),
-
+    path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+    path('api/olx/authorization/', OlxAuthorizationAPIView.as_view(), name='olx-authorization'),
+    path('api/bitrix/placement/', PlacementOptionsViewSet.as_view({'post': 'create'}), name='placement')
 ]
 
 

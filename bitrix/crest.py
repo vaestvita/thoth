@@ -22,7 +22,7 @@ def call_method(portal_domain: str, b24_method: str, data: dict):
         payload = {'auth': access_token, **data}
         logger.debug(f'Data send to b24: {payload}')
         response = requests.post(f"{endpoint}{b24_method}", json=payload)
-
+        
         if response.status_code == 401 and response.json().get('error') == 'expired_token':
             refresh_token(portal)
             return call_method(portal_domain, b24_method, data)
@@ -31,7 +31,7 @@ def call_method(portal_domain: str, b24_method: str, data: dict):
         return response.json()
     
     except (requests.HTTPError, Exception) as e:
-        logger.error(f"General error occurred: {e} {response.json()}")
+        logger.error(f"General error occurred: {e}")
         return JsonResponse({"detail": str(e)}, status=500)
 
 
