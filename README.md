@@ -52,5 +52,5 @@ journalctl -u thoth -f
 ## Подключение 
 
 + [Битрикс](docs/bitrix.md)
-+ [WABA](docs/waba.md)
++ [(WhatsApp) WABA](docs/waba.md)
 + [OLX](docs/olx.md)
