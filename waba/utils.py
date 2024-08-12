@@ -51,7 +51,7 @@ def send_message(domain, message, line_id, phones):
             logger.error(f"Failed to send message to {phone}: {response.json()}")
             return Response({f"Failed to send message to {phone}: {response.json()}"}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            logger.info(f"Message sent to {phone}")
+            logger.debug(f"Message sent to {phone}. Result: {response.json()}")
             return Response({f"Message sent to {phone}"}, status=status.HTTP_200_OK)
 
 
