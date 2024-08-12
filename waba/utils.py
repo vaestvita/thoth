@@ -96,6 +96,7 @@ def format_contacts(contacts):
 
     return contact_text
 
+
 def message_processing(request):
     data = request.data
     logger.debug(f'request from waba: {data}')
@@ -160,22 +161,24 @@ def message_processing(request):
         if callback_data:
             line, chat_id, message_id = callback_data.split('_')
 
-            payload = {
-                'CONNECTOR': 'thoth_waba',
-                'LINE': line,
-                'MESSAGES': [
-                    {
-                        'im': {
-                            'chat_id': chat_id,
-                            'message_id': message_id
-                        }
-                    }
-                ]
-            }
+            message_data['MESSAGES'][0]['im'] = {'chat_id': chat_id, 'message_id': message_id}
 
             if status_name == 'delivered':
-                call_method(domain, 'imconnector.send.status.delivery', payload)
+                call_method(domain, 'imconnector.send.status.delivery', message_data)
             elif status_name == 'read':
-                call_method(domain, 'imconnector.send.status.reading', payload)
+                call_method(domain, 'imconnector.send.status.reading', message_data)
+
+        if status_name == 'failed':
+            errors = item.get('errors', [])
+            logger.error(f'FaceBook Error: {errors}')
+            error_messages = []
+            for error in errors:
+                error_message = f"FaceBook Error Code: {error['code']}, Title: {error['title']}, Message: {error['error_data']['details']}"
+                error_messages.append(error_message)
+            combined_error_message = " | ".join(error_messages)
+            message_data['MESSAGES'][0]['user']['id'] = item.get('recipient_id')
+            message_data['MESSAGES'][0]['message']['text'] = combined_error_message
+
+            call_method(domain, 'imconnector.send.messages', message_data)
 
     return Response({"status": "received"}, status=status.HTTP_200_OK)
