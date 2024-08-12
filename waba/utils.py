@@ -97,12 +97,13 @@ def format_contacts(contacts):
     return contact_text
 
 def message_processing(request):
+    data = request.data
+    logger.debug(f'request from waba: {data}')
     message_data = {
         'CONNECTOR': 'thoth_waba',
         'MESSAGES': [{'user': {}, 'chat': {}, 'message': {}}]
     }
     message_data['MESSAGES'][0]['user']['skip_phone_validate'] = 'Y'
-    data = request.data
 
     entry = data['entry'][0]
     changes = entry['changes'][0]
