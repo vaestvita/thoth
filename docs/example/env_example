@@ -1,4 +1,7 @@
 # DEBUG=True
+DATABASE_URL=postgres://postgres:12345678@127.0.0.1:5432/thoth
+CELERY_BROKER_URL=redis://localhost:6379/0
+REDIS_URL=redis://localhost:6379/0
+DJANGO_ALLOWED_HOSTS=127.0.0.1,app.thoth.kz
 HOME_URL=https://app.thoth.kz
-ALLOWED_HOSTS=127.0.0.1,192.168.20.5,app.thoth.kz
 CSRF_TRUSTED_ORIGINS=https://app.thoth.kz
