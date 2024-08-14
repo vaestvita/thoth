@@ -2,8 +2,7 @@ import logging
 
 import requests
 from django.contrib import messages
-from django.shortcuts import get_object_or_404
-from django.shortcuts import redirect
+from django.shortcuts import get_object_or_404, redirect
 from rest_framework.views import APIView
 
 from thoth.olx.models import OlxApp, OlxUser
@@ -56,13 +55,18 @@ class OlxAuthorizationAPIView(LoginRequiredMixin, APIView):
                 olx_user = OlxUser.objects.filter(olx_id=olx_id, olxapp=account).first()
 
                 if olx_user:
+                    # Проверка, что текущий пользователь является владельцем olx_user
+                    if olx_user.owner != request.user:
+                        messages.error(request, f"You do not have permission to update this OLX account ({olx_user.email})")
+                        return redirect("home")
+
                     # Обновление токенов для существующего пользователя
                     olx_user.access_token = access_token
                     olx_user.refresh_token = refresh_token
                     olx_user.save()
                     messages.success(request, "OLX Tokens successfully updated")
                 else:
-                    # Создание нового пользователя
+                    # Создание нового пользователя с указанием владельца
                     OlxUser.objects.create(
                         olxapp=account,
                         olx_id=olx_id,
@@ -71,8 +75,9 @@ class OlxAuthorizationAPIView(LoginRequiredMixin, APIView):
                         phone=user_data["phone"],
                         access_token=access_token,
                         refresh_token=refresh_token,
+                        owner=request.user
                     )
-                    messages.success(request, "OLX User successfully added")
+                    messages.success(request, "OLX Account successfully added")
 
                 return redirect("home")
 

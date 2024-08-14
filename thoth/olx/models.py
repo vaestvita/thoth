@@ -1,11 +1,11 @@
 import json
 import logging
+import uuid
 
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
-from django_celery_beat.models import IntervalSchedule
-from django_celery_beat.models import PeriodicTask
+from django_celery_beat.models import IntervalSchedule, PeriodicTask
 
 from thoth.bitrix.models import Line
 
@@ -22,6 +22,7 @@ class OlxApp(models.Model):
         ("olx.pl", "olx.pl"),
     ]
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
