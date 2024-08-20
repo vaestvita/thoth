@@ -5,7 +5,9 @@ from rest_framework.viewsets import GenericViewSet
 
 from thoth.bitrix.models import Bitrix
 
-from ..utils import event_processor, process_placement, sms_processor
+from ..utils import event_processor
+from ..utils import process_placement
+from ..utils import sms_processor
 from .serializers import PortalSerializer
 
 
@@ -14,7 +16,7 @@ class PortalViewSet(CreateModelMixin, GenericViewSet, ListModelMixin):
     serializer_class = PortalSerializer
 
     def create(self, request, *args, **kwargs):
-        return event_processor(self, request)
+        return event_processor(request)
 
 
 class PlacementOptionsViewSet(GenericViewSet, CreateModelMixin):
@@ -27,7 +29,7 @@ class PlacementOptionsViewSet(GenericViewSet, CreateModelMixin):
         return process_placement(request)
 
 
-class SnsViewSet(GenericViewSet, CreateModelMixin):
+class SmsViewSet(GenericViewSet, CreateModelMixin):
     renderer_classes = [JSONRenderer]
 
     def get_queryset(self):

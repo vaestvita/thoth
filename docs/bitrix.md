@@ -4,19 +4,23 @@
 
 ![alt text](img/token.png)
 
++ В разделе Sites переименуйте example.com в домен по котрому будет доступен thoth
++ Bitrix > Apps - добавить приложение. Заполнить имя (waba, olx) и выбрать домен. Скопировать Id
+
 + В Битрикс24 создайте серверное локальное приложение без интерфейса (Приложения – Разработчикам – Другое – Локальное приложение) в Битрикс24 и заполните соответствующие поля (Путь вашего обработчика и Путь для первоначальной установки) 
 + Необходимые права (Настройка прав): crm,imopenlines,contact_center,user,messageservice,im,imconnector,disk
 ```
-https://example.com/api/bitrix/?api-key=XXXXXXX
-XXXXXXX - ваш токен 
+
+url установки https://example.com/api/bitrix/?api-key=XXXXXXX&app-id=YYYYYYY
+url обработчка https://example.com/api/bitrix/?api-key=XXXXXXX
+XXXXXXX - ваш токен
+YYYYYYY - id приложения из пред шага
 ```
 
-![alt text](img/app.png)
 
-+ В админке thoth перейдите в раздел Bitrix, там должен появиться ваш портал, откройте его и заполните значения полей "Код приложения" (client_id) и "Ключ приложения" (client_secret). Они были выданы Битриксом в предыдущем шаге при установке локального приложения
++ "Код приложения" (client_id) и "Ключ приложения" (client_secret) копируем в Bitrix > Apps - ваше приложение. Они были выданы Битриксом в предыдущем шаге при установке локального приложения
 
-![alt text](img/portal.png)
 
-+ В битриксе в разделе "контакт-центр" должны появиться коннекторы "THOTH WABA" и "THOTH OLX"
++ В битриксе в разделе "контакт-центр" должны появиться коннекторы "THOTH WABA" или "THOTH OLX"
 
 ![alt text](img/olx-connector.png)

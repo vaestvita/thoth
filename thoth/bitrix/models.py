@@ -1,7 +1,25 @@
+import uuid
+
 from django.conf import settings
-from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
+from django.contrib.sites.models import Site
 from django.db import models
+from django.utils import timezone
+
+
+class App(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    site = models.ForeignKey(
+        Site, on_delete=models.CASCADE, related_name="apps", blank=True, null=True
+    )
+    name = models.CharField(max_length=255, blank=True, unique=True)
+    client_id = models.CharField(max_length=255, blank=True, unique=True)
+    client_secret = models.CharField(max_length=255, blank=True)
+
+    def __str__(self):
+        return self.name
+
+    def get_instances(self):
+        return self.installations.all()
 
 
 class Bitrix(models.Model):
@@ -12,26 +30,57 @@ class Bitrix(models.Model):
         blank=True,
         null=True,
     )
-    storage_id = models.CharField(max_length=255, blank=True)
-    client_endpoint = models.CharField(max_length=255)
-    access_token = models.CharField(max_length=255)
-    refresh_token = models.CharField(max_length=255)
-    application_token = models.CharField(max_length=255)
-    client_id = models.CharField(max_length=255, blank=True)
-    client_secret = models.CharField(max_length=255, blank=True)
+    user_id = models.CharField(max_length=255, blank=True, null=True)
+    client_endpoint = models.CharField(max_length=255, blank=True)
 
     def __str__(self):
         return self.domain
 
+    def get_instances(self):
+        return self.installations.all()
+
+
+class AppInstance(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, blank=True, null=True
+    )
+    app = models.ForeignKey(App, on_delete=models.CASCADE, related_name="installations")
+    portal = models.ForeignKey(
+        Bitrix, on_delete=models.CASCADE, related_name="installations"
+    )
+    auth_status = models.CharField(max_length=1)
+    access_token = models.CharField(max_length=255, blank=True)
+    refresh_token = models.CharField(max_length=255, blank=True)
+    application_token = models.CharField(max_length=255, blank=True)
+    storage_id = models.CharField(max_length=255, blank=True)
+
+    def __str__(self):
+        return f"{self.app.name} on {self.portal.domain}"
+
 
 class Line(models.Model):
     line_id = models.CharField(max_length=50)
-    portal = models.ForeignKey(Bitrix, on_delete=models.CASCADE, related_name="lines")
-
-    # Обобщенное отношение (Generic Relation)
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    object_id = models.PositiveIntegerField()
-    content_object = GenericForeignKey("content_type", "object_id")
+    app_instance = models.ForeignKey(
+        "AppInstance", on_delete=models.CASCADE, related_name="lines", null=True
+    )
 
     def __str__(self):
-        return f"Line {self.line_id} on {self.portal}"
+        return f"Line {self.line_id} for AppInstance {self.app_instance}"
+
+
+class VerificationCode(models.Model):
+    portal = models.OneToOneField(Bitrix, on_delete=models.CASCADE)
+    code = models.UUIDField(default=uuid.uuid4)
+    expires_at = models.DateTimeField()
+
+    def is_valid(self):
+        return self.expires_at > timezone.now()
+
+
+class FAQ(models.Model):
+    question = models.CharField(max_length=255)
+    answer = models.TextField()
+
+    def __str__(self):
+        return self.question

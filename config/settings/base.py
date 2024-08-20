@@ -19,8 +19,6 @@ if READ_DOT_ENV_FILE:
     # OS environment variables take precedence over variables from .env
     env.read_env(str(BASE_DIR / ".env"))
 
-HOME_URL = env("HOME_URL")
-
 
 SECRET_KEY = env('DJANGO_SECRET_KEY', default='')
 
@@ -32,13 +30,7 @@ if not SECRET_KEY:
     with open(os.path.join(BASE_DIR, '.env'), 'a') as env_file:
         env_file.write(f'\nDJANGO_SECRET_KEY={SECRET_KEY}\n')
 
-# BITRIX24 
-"""
-Для тиражного приложения используется client_id и client_secret
-из конфигурационного файла
-"""
-BITRIX_CLIENT_ID = env('BITRIX_CLIENT_ID', default='')
-BITRIX_CLIENT_SECRET = env('BITRIX_CLIENT_SECRET', default='')
+
 
 # GENERAL
 # ------------------------------------------------------------------------------
@@ -67,16 +59,12 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#locale-paths
 LOCALE_PATHS = [str(BASE_DIR / "locale")]
 
+
+
 # DATABASES
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
-
-DATABASES = {
-    "default": env.db(
-        "DATABASE_URL",
-        default="postgres://localhost/thoth",
-    ),
-}
+DATABASES = {"default": env.db("DATABASE_URL")}
 DATABASES["default"]["ATOMIC_REQUESTS"] = True
 # https://docs.djangoproject.com/en/stable/ref/settings/#std:setting-DEFAULT_AUTO_FIELD
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -275,10 +263,7 @@ if not ADMIN_URL:
     with open(os.path.join(BASE_DIR, '.env'), 'a') as env_file:
         env_file.write(f'DJANGO_ADMIN_URL={ADMIN_URL}\n')
 
-# https://docs.djangoproject.com/en/dev/ref/settings/#admins
-ADMINS = [("""Anton Gulin""", "gulin@thoth.kz")]
-# https://docs.djangoproject.com/en/dev/ref/settings/#managers
-MANAGERS = ADMINS
+
 # https://cookiecutter-django.readthedocs.io/en/latest/settings.html#other-environment-settings
 # Force the `admin` sign in process to go through the `django-allauth` workflow
 DJANGO_ADMIN_FORCE_ALLAUTH = env.bool("DJANGO_ADMIN_FORCE_ALLAUTH", default=False)

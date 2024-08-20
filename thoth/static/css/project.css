@@ -11,3 +11,23 @@
   background-color: #f2dede;
   border-color: #eed3d7;
 }
+
+
+.faq-container {
+  width: 80%;
+  padding: 20px;
+}
+.faq-question {
+  cursor: pointer;
+  padding: 10px;
+  background-color: #f1f1f1;
+  border: 1px solid #ccc;
+  margin-bottom: 5px;
+}
+.faq-answer {
+  display: none;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-top: none;
+  margin-bottom: 10px;
+}

@@ -10,9 +10,6 @@ from drf_spectacular.views import SpectacularAPIView
 from drf_spectacular.views import SpectacularSwaggerView
 from rest_framework.authtoken.views import obtain_auth_token
 
-from thoth.olx.api.views import OlxAuthorizationAPIView
-
-from thoth.bitrix.api.views import PlacementOptionsViewSet, SnsViewSet
 
 urlpatterns = [
     path("", TemplateView.as_view(template_name="pages/home.html"), name="home"),
@@ -44,21 +41,8 @@ urlpatterns += [
         SpectacularSwaggerView.as_view(url_name="api-schema"),
         name="api-docs",
     ),
-    path(
-        "api/olx/authorization/",
-        OlxAuthorizationAPIView.as_view(),
-        name="olx-authorization",
-    ),
-    path(
-        "api/bitrix/placement/",
-        PlacementOptionsViewSet.as_view({"post": "create"}),
-        name="placement",
-    ),
-    path(
-        "api/bitrix/sms/",
-        SnsViewSet.as_view({"post": "create"}),
-        name="sms"
-    )
+    path("", include("thoth.bitrix.urls")),
+    path("", include("thoth.olx.urls")),
 ]
 
 if settings.DEBUG:

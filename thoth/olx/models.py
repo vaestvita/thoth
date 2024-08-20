@@ -5,7 +5,8 @@ import uuid
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
-from django_celery_beat.models import IntervalSchedule, PeriodicTask
+from django_celery_beat.models import IntervalSchedule
+from django_celery_beat.models import PeriodicTask
 
 from thoth.bitrix.models import Line
 
@@ -54,16 +55,11 @@ class OlxUser(models.Model):
         OlxApp,
         on_delete=models.CASCADE,
         related_name="olx_users",
+        null=True,
+        blank=True,
     )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="olx_users",
-        blank=True,
-        null=True,
-    )
-    bitrix = models.ForeignKey(
-        "bitrix.Bitrix",
         on_delete=models.CASCADE,
         related_name="olx_users",
         blank=True,
@@ -75,7 +71,7 @@ class OlxUser(models.Model):
         related_name="olx_users",
         blank=True,
         null=True,
-    )  # Связь с таблицей Line
+    )
     periodicity = models.PositiveIntegerField(
         default=10,
         help_text="Frequency of OLX server polling in minutes.",
@@ -105,8 +101,8 @@ class OlxUser(models.Model):
             self.periodicity = 10
         super().save(*args, **kwargs)
 
-        # Проверка наличия привязки к Битриксу
-        if self.bitrix:
+        # Проверка наличия привязки к AppInstance
+        if self.line:
             # создание задачи на периодическую проверку сообщений olx
             self.add_shedule_task()
 

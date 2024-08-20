@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from thoth.bitrix.models import AppInstance
 from thoth.bitrix.models import Line
 
 
@@ -16,14 +17,9 @@ class Waba(models.Model):
     )
     access_token = models.CharField(max_length=255)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    bitrix = models.ForeignKey(
-        "bitrix.Bitrix",
-        on_delete=models.CASCADE,
-        related_name="wabas",
-    )
 
     def __str__(self):
-        return f"{self.name} ({self.bitrix})"
+        return f"{self.name}"
 
 
 class Phone(models.Model):
@@ -33,6 +29,9 @@ class Phone(models.Model):
     old_sms_service = models.BooleanField(default=False)
     waba = models.ForeignKey(Waba, on_delete=models.CASCADE, related_name="phones")
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    app_instance = models.ForeignKey(
+        AppInstance, on_delete=models.SET_NULL, related_name="phones", null=True
+    )
     line = models.ForeignKey(
         Line,
         on_delete=models.SET_NULL,

@@ -92,7 +92,7 @@ def get_threads(olx_user_id):
                             }
                             logger.debug(f"data for b24 message {payload}")
                             call_method(
-                                user.bitrix,
+                                user.line.app_instance,
                                 "imconnector.send.messages",
                                 payload,
                             )

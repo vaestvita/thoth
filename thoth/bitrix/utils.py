@@ -3,8 +3,10 @@ import json
 import logging
 import os
 import re
+import uuid
+from datetime import timedelta
+from django.utils import timezone
 
-from django.conf import settings
 from rest_framework import status
 from rest_framework.response import Response
 
@@ -14,18 +16,17 @@ from thoth.olx.models import OlxUser
 from thoth.waba.models import Phone
 
 from .crest import call_method
-from .models import Bitrix
-from .models import Line
+from .models import App, AppInstance, Bitrix, Line, VerificationCode
+
 
 logger = logging.getLogger("django")
 
-HOME_URL = settings.HOME_URL
 EVENTS = [
     "ONIMCONNECTORMESSAGEADD",
     "ONIMCONNECTORLINEDELETE",
     "ONIMCONNECTORSTATUSDELETE",
+    "ONAPPUNINSTALL",
 ]
-CONNECTORS = ["waba", "olx"]
 
 
 def thoth_logo(connetor):
@@ -39,39 +40,41 @@ def thoth_logo(connetor):
 
 
 # Регистрация коннектора
-def register_connector(domain, api_key):
-    for connetor in CONNECTORS:
-        payload = {
-            "ID": f"thoth_{connetor}",
-            "NAME": f"THOTH {connetor.upper()}",
-            "ICON": {
-                "DATA_IMAGE": thoth_logo(connetor),
-            },
-            "PLACEMENT_HANDLER": f"{HOME_URL}/api/bitrix/placement/?api-key={api_key}",
-        }
+def register_connector(appinstance: AppInstance, api_key: str):
+    connetor = appinstance.app.name
+    url = appinstance.app.site
+    payload = {
+        "ID": f"thoth_{connetor}",
+        "NAME": f"THOTH {connetor.upper()}",
+        "ICON": {
+            "DATA_IMAGE": thoth_logo(connetor),
+        },
+        "PLACEMENT_HANDLER": f"https://{url}/api/bitrix/placement/?api-key={api_key}&inst={appinstance.id}",
+    }
 
-        call_method(domain, "imconnector.register", payload)
+    call_method(appinstance, "imconnector.register", payload)
 
     # Подписка на события
     for event in EVENTS:
         payload = {
             "event": event,
-            "HANDLER": f"{HOME_URL}/api/bitrix/?api-key={api_key}",
+            "HANDLER": f"https://{url}/api/bitrix/?api-key={api_key}",
         }
 
-        call_method(domain, "event.bind", payload)
+        call_method(appinstance, "event.bind", payload)
 
 
 # Регистрация SMS-провайдера
-def messageservice_add(domain, phone, line, api_key):
+def messageservice_add(appinstance, phone, line, api_key):
+    url = appinstance.app.site
     payload = {
-        "CODE": f"THOTH_WABA_{phone}_{line}",
-        "NAME": f"THOTH WABA ({phone})",
+        "CODE": f"THOTH_{phone}_{line}",
+        "NAME": f"THOTH ({phone})",
         "TYPE": "SMS",
-        "HANDLER": f"{HOME_URL}/api/bitrix/sms/?api-key={api_key}",
+        "HANDLER": f"https://{url}/api/bitrix/sms/?api-key={api_key}",
     }
 
-    return call_method(domain, "messageservice.sender.add", payload)
+    return call_method(appinstance, "messageservice.sender.add", payload)
 
 
 def get_personal_mobile(users):
@@ -111,107 +114,60 @@ def extract_files(data):
     return files
 
 
+def get_line(app_instance, line_id):
+    line_data = call_method(
+        app_instance, "imopenlines.config.get", {"CONFIG_ID": line_id}
+    )
+    if "result" not in line_data:
+        return Response({"error": f"{line_data}"})
+    line_name = line_data["result"]["LINE_NAME"]
+    return line_name
+
+
 def process_placement(request):
     try:
         data = request.data
         placement_options = data.get("PLACEMENT_OPTIONS", {})
-        domain = request.query_params.get("DOMAIN", {})
-
-        if not placement_options:
-            return Response(
-                {"error": "PLACEMENT_OPTIONS is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        inst = request.query_params.get("inst", {})
 
         placement_options = json.loads(placement_options)
         line_id = placement_options.get("LINE")
         connector = placement_options.get("CONNECTOR")
 
-        line_data = call_method(
-            domain,
-            "imopenlines.config.get",
-            {"CONFIG_ID": line_id},
-        )
-        if "result" in line_data:
-            portal = Bitrix.objects.filter(domain=domain).first()
+        app_instance = AppInstance.objects.get(id=inst)
 
-            if not portal:
-                return Response(
-                    {"error": "Domain not found"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+        line_name = get_line(app_instance, line_id)
 
-            element_id = None
-            content_object = None
+        try:
+            line = Line.objects.get(line_id=line_id, app_instance=app_instance)
+            if connector == "thoth_olx":
+                finded_object = OlxUser.objects.filter(line=line).first()
+            elif connector == "thoth_waba":
+                finded_object = Phone.objects.filter(line=line).first()
+            if finded_object:
+                return Response("Ничего не изменилось, спасибо.")
 
-            if connector == "thoth_waba":
-                try:
-                    _, element_id = line_data["result"]["LINE_NAME"].split("_")
-                except ValueError as e:
-                    logger.error(f"Error parsing LINE_NAME: {e}")
-                    return Response(
-                        {
-                            "error": "Invalid LINE_NAME format. Correct is THOTH_XXXXXXXXX",
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+            else:
+                if connector == "thoth_olx":
+                    olxuser = OlxUser.objects.get(olx_id=line_name)
+                    olxuser.line = line
+                    olxuser.save()
 
-                phone = Phone.objects.filter(phone=element_id).first()
-                if phone:
-                    content_object = phone
-                else:
-                    return Response(
-                        {"error": f"Phone {element_id} not found in THOTH base"},
-                        status=status.HTTP_404_NOT_FOUND,
-                    )
+                elif connector == "thoth_waba":
+                    phone = Phone.objects.get(phone=line_name)
+                    phone.line = line
+                    phone.save()
 
-            elif connector == "thoth_olx":
-                try:
-                    _, _, element_id = line_data["result"]["LINE_NAME"].split("_")
-                except ValueError as e:
-                    logger.error(f"Error parsing LINE_NAME: {e}")
-                    return Response(
-                        {
-                            "error": "Invalid LINE_NAME format. Correct is THOTH_OLX_XXXXX",
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+                payload = {
+                    "CONNECTOR": connector,
+                    "LINE": line_id,
+                    "ACTIVE": 1,
+                }
+                call_method(app_instance, "imconnector.activate", payload)
+                return Response("Линия подключена, спасибо.")
 
-                olxuser = OlxUser.objects.filter(olx_id=element_id).first()
-                if olxuser:
-                    content_object = olxuser
-                else:
-                    return Response(
-                        {
-                            "error": f"OLX user with the ID {element_id} not found in THOTH base",
-                        },
-                        status=status.HTTP_404_NOT_FOUND,
-                    )
-
-            # Создаем или получаем линию и связываем с найденным объектом
-            line, created = Line.objects.get_or_create(
-                line_id=line_id,
-                portal=portal,
-                defaults={"content_object": content_object},
-            )
-
-            if not created:
-                line.content_object = content_object
-                line.save()
-
-            if isinstance(content_object, Phone) or isinstance(content_object, OlxUser):
-                content_object.line = line
-            content_object.save()
-
-            payload = {
-                "CONNECTOR": connector,
-                "LINE": line_id,
-                "ACTIVE": 1,
-            }
-
-            resp = call_method(domain, "imconnector.activate", payload)
-
-            return Response(resp, status=status.HTTP_200_OK)
+        except Line.DoesNotExist:
+            return Response("Создать линию можно на app.thoth.kz, спасибо.")
 
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
@@ -223,11 +179,13 @@ def process_placement(request):
 
 def sms_processor(request):
     data = request.data
+    application_token = data.get("auth[application_token]", {})
+    appinstance = AppInstance.objects.get(application_token=application_token)
     domain = data.get("auth[domain]", {})
     sms_msg = data.get("type", {})
     message_body = data.get("message_body", {})
 
-        # Messages from SMS gate
+    # Messages from SMS gate
     if sms_msg == "SMS":
         phones = []
         message_to = data.get("message_to", {})
@@ -236,8 +194,11 @@ def sms_processor(request):
         try:
             template, language = message_body.split("+")
         except ValueError as e:
-            logger.error(f"Error splitting message_body: {message_body} - {str(e)}")
-            return Response({"error": "Invalid message body content"}, status=status.HTTP_400_BAD_REQUEST)
+            logger.error(f"Error splitting message_body: {message_body} - {e!s}")
+            return Response(
+                {"error": "Invalid message body content"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         message = {
             "type": "template",
             "template": {"name": template, "language": {"code": language}},
@@ -245,81 +206,108 @@ def sms_processor(request):
         code = data.get("code", {})
         line = re.search(r"_(\d+)$", code).group(1)
 
-        thoth.waba.utils.send_message(domain, message, line, phones)
+        thoth.waba.utils.send_message(appinstance, message, line, phones)
         return Response({"status": "message processed"}, status=status.HTTP_200_OK)
 
 
-
-def event_processor(self, request):
+def event_processor(request):
     try:
         data = request.data
         event = data.get("event", {})
         domain = data.get("auth[domain]", {})
+        user_id = data.get("auth[user_id]", {})
         auth_status = data.get("auth[status]", {})
         client_endpoint = data.get("auth[client_endpoint]", {})
         access_token = data.get("auth[access_token]", {})
         refresh_token = data.get("auth[refresh_token]", {})
         application_token = data.get("auth[application_token]", {})
         api_key = request.query_params.get("api-key", {})
-        
-        # Проверка наличия домена в базе данных
-        try:
-            portal = Bitrix.objects.get(domain=domain)
-            # Обновление access_token
-            portal.access_token = access_token
-            portal.save()
+        app_id = request.query_params.get("app-id", {})
 
-        except Bitrix.DoesNotExist:
-            # Если событие ONAPPINSTALL, сохраняем данные домена в базу
+        # Проверка наличия приложения в базе данных
+        try:
+            appinstance = AppInstance.objects.get(application_token=application_token)
+            # Обновление токенa
+            if access_token:
+                appinstance.access_token = access_token
+                appinstance.save()
+
+        except AppInstance.DoesNotExist:
+            # Если событие ONAPPINSTALL
             if event == "ONAPPINSTALL":
-                bitrix_data = {
-                    "domain": domain,
-                    "client_endpoint": client_endpoint,
+                # Получение приложения по app_id
+                try:
+                    app = App.objects.get(id=app_id)
+                except App.DoesNotExist:
+                    return Response(
+                        {"error": "App not found."}, status=status.HTTP_404_NOT_FOUND
+                    )
+
+                try:
+                    portal = Bitrix.objects.get(domain=domain)
+                except Bitrix.DoesNotExist:
+                    portal_data = {
+                        "domain": domain,
+                        "user_id": user_id,
+                        "client_endpoint": client_endpoint,
+                        "owner": request.user if auth_status == "L" else None,
+                    }
+                    portal = Bitrix.objects.create(**portal_data)
+
+
+                # Определяем владельца для AppInstance
+                appinstance_owner = (
+                    portal.owner
+                    if portal.owner
+                    else (request.user if auth_status == "L" else None)
+                )
+
+                appinstance_data = {
+                    "app": app,
+                    "portal": portal,
+                    "auth_status": auth_status,
                     "access_token": access_token,
                     "refresh_token": refresh_token,
                     "application_token": application_token,
+                    "owner": appinstance_owner,
                 }
 
-                """
-                Если приложение локальное, то привязываем к пользователю
-                Если тиражное (F), то портал привязывается вручную
-                """
-                if auth_status == 'L':
-                    bitrix_data["owner"] = request.user.id
+                appinstance = AppInstance.objects.create(**appinstance_data)
 
-                # Create the portal with the domain and access token
-                serializer = self.get_serializer(data=bitrix_data)
-                if not serializer.is_valid():
-                    logger.error("Serializer Errors: ", serializer.errors)
-                    return Response(
-                        serializer.errors,
-                        status=status.HTTP_400_BAD_REQUEST,
+                # Получаем storage_id и сохраняем его
+                storage_id_data = call_method(appinstance, "disk.storage.getforapp", {})
+                storage_id = storage_id_data["result"]["ID"]
+                appinstance.storage_id = storage_id
+                appinstance.save()
+
+                # Регистрируем коннектор
+                register_connector(appinstance, api_key)
+
+                # Если тиражное приложение отправлем код
+                if auth_status == "F":
+                    code = uuid.uuid4()
+                    VerificationCode.objects.create(
+                        portal=portal,
+                        code=code,
+                        expires_at=timezone.now() + timedelta(days=1),
                     )
 
-                self.perform_create(serializer)
+                    payload = {
+                        "message": f"Ваш код подтверждения: {code}",
+                        "USER_ID": appinstance.portal.user_id,
+                    }
 
-                storage_id_data = call_method(domain, "disk.storage.getforapp", {})
-                storage_id = storage_id_data["result"]["ID"]
+                    call_method(appinstance, "im.notify.system.add", payload)
 
-                portal = Bitrix.objects.get(domain=domain)
-                portal.storage_id = storage_id
-                portal.save()
-
-                # imconnector register
-                register_connector(domain, api_key)
-
-                headers = self.get_success_headers(serializer.data)
                 return Response(
-                    serializer.data,
+                    {"message": "App and portal successfully created and linked."},
                     status=status.HTTP_201_CREATED,
-                    headers=headers,
                 )
             else:
                 return Response(
-                    {"error": "Domain not found and not an install event"},
+                    {"error": "App not found and not an install event."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
 
         # Обработка события ONIMCONNECTORMESSAGEADD
         if event == "ONIMCONNECTORMESSAGEADD":
@@ -359,15 +347,11 @@ def event_processor(self, request):
 
                 # Получаем список пользователей и номера телефонов
                 user_list = call_method(
-                    domain,
-                    "im.chat.user.list",
-                    {"CHAT_ID": chat_id},
+                    appinstance, "im.chat.user.list", {"CHAT_ID": chat_id}
                 )
                 if user_list:
                     users = call_method(
-                        domain,
-                        "im.user.list.get",
-                        {"ID": user_list["result"]},
+                        appinstance, "im.user.list.get", {"ID": user_list["result"]}
                     )
                     phones = get_personal_mobile(users["result"])
 
@@ -388,14 +372,13 @@ def event_processor(self, request):
                                 }
 
                             thoth.waba.utils.send_message(
-                                domain,
-                                file_message,
-                                line,
-                                phones,
+                                appinstance, file_message, line, phones
                             )
                     else:
                         # Если файлов нет, отправляем только текстовое сообщение
-                        thoth.waba.utils.send_message(domain, message, line, phones)
+                        thoth.waba.utils.send_message(
+                            appinstance, message, line, phones
+                        )
 
             # If OLX connector
             elif connector == "thoth_olx":
@@ -415,7 +398,9 @@ def event_processor(self, request):
                         ],
                     }
 
-                    call_method(domain, "imconnector.send.status.delivery", payload)
+                    call_method(
+                        appinstance, "imconnector.send.status.delivery", payload
+                    )
 
                 else:
                     error_text = resp.json()["error"]["detail"]
@@ -439,7 +424,7 @@ def event_processor(self, request):
                         ],
                     }
 
-                    call_method(domain, "imconnector.send.messages", payload)
+                    call_method(appinstance, "imconnector.send.messages", payload)
 
             return Response(
                 {"status": "ONIMCONNECTORMESSAGEADD event processed"},
@@ -448,26 +433,53 @@ def event_processor(self, request):
 
         elif event == "ONIMCONNECTORSTATUSDELETE":
             line_id = data.get("data[line]")
-            line = Line.objects.filter(line_id=line_id, portal__domain=domain).first()
-            if line:
-                content_object = line.content_object
-                if isinstance(content_object, Phone) or isinstance(
-                    content_object,
-                    OlxUser,
-                ):
-                    content_object.line = None
-                    content_object.save()
-                line.delete()
-                return Response({"status": "Line cleared"}, status=status.HTTP_200_OK)
-            else:
+            connector = data.get("data[connector]")
+            try:
+                line = Line.objects.get(line_id=line_id, app_instance=appinstance)
+
+                if connector == "thoth_olx":
+                    olxuser = line.olx_users.first()
+                    if olxuser:
+                        olxuser.line = None
+                        olxuser.save()
+
+                elif connector == "thoth_waba":
+                    phone = line.phones.first()
+                    if phone:
+                        phone.line = None
+                        phone.save()
+
+                return Response("Line disconnected")
+
+            except Line.DoesNotExist:
                 return Response(
-                    {"error": "Line not found"},
-                    status=status.HTTP_404_NOT_FOUND,
+                    {"status": "Line not found"},
+                    status=status.HTTP_200_OK,
                 )
 
+
         elif event == "ONIMCONNECTORLINEDELETE":
-            line = data.get("data")
-            return Response({"status": "Line cleared"}, status=status.HTTP_200_OK)
+            line_id = data.get("data")
+            try:
+                line = Line.objects.filter(
+                    line_id=line_id, app_instance=appinstance
+                ).first()
+                if line:
+                    line.delete()
+                return Response({"status": "Line deleted"}, status=status.HTTP_200_OK)
+            except Line.DoesNotExist:
+                return Response(
+                    {"status": "Line not found"}, status=status.HTTP_200_OK
+                )
+
+        elif event == "ONAPPUNINSTALL":
+            portal = appinstance.portal
+            appinstance.delete()
+            if not AppInstance.objects.filter(portal=portal).exists():
+                portal.delete()
+                return Response(f"{appinstance} and associated portal deleted")
+            else:
+                return Response(f"{appinstance} deleted")
 
         else:
             return Response(

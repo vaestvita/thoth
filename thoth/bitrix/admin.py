@@ -1,36 +1,63 @@
+from django import forms
 from django.contrib import admin
 
-from .models import Bitrix
-from .models import Line
+from .models import App, AppInstance, Bitrix, Line, FAQ
+
+
+
+@admin.register(App)
+class AppAdmin(admin.ModelAdmin):
+    list_display = ("name", "id", "site")
+    search_fields = ("name",)
+    fields = ("id", "site", "name", "client_id", "client_secret")
+    readonly_fields = ("id",)
+
+
+@admin.register(AppInstance)
+class AppInstanceAdmin(admin.ModelAdmin):
+    list_display = ("id", "owner", "app", "portal")
+    fields = (
+        "id",
+        "owner",
+        "app",
+        "portal",
+        "auth_status",
+        "storage_id",
+        "access_token",
+        "refresh_token",
+        "application_token",
+    )
+    readonly_fields = (
+        "id",
+        "app",
+        "portal",
+        "auth_status",
+        "storage_id",
+        "access_token",
+        "refresh_token",
+        "application_token",
+    )
 
 
 @admin.register(Bitrix)
 class BitrixAdmin(admin.ModelAdmin):
-    list_display = ("domain", "owner", "storage_id")
+    list_display = ("domain", "owner")
     search_fields = ("domain",)
-    list_filter = ("domain",)
-    readonly_fields = (
-        "domain",
-        "storage_id",
-        "client_endpoint",
-        "access_token",
-        "refresh_token",
-        "application_token",
-    )
-    fields = (
-        "domain",
-        "owner",
-        "storage_id",
-        "client_endpoint",
-        "access_token",
-        "refresh_token",
-        "application_token",
-        "client_id",
-        "client_secret",
-    )
+    readonly_fields = ("domain", "client_endpoint", "user_id")
+    fields = ("domain", "client_endpoint", "owner", "user_id")
 
 
 @admin.register(Line)
 class LineAdmin(admin.ModelAdmin):
-    list_display = ("line_id", "portal", "content_type", "object_id")
-    search_fields = ("line_id", "portal__domain")
+    list_display = ("line_id", "app_instance")
+    search_fields = ("line_id",)
+    fields = ("line_id", "app_instance")
+    readonly_fields = ("line_id", "app_instance")
+
+
+
+
+@admin.register(FAQ)
+class FAQAdmin(admin.ModelAdmin):
+    list_display = ("question",)
+    fields = ("question", "answer")

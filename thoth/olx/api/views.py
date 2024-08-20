@@ -2,28 +2,39 @@ import logging
 
 import requests
 from django.contrib import messages
-from django.shortcuts import get_object_or_404, redirect
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.shortcuts import get_object_or_404
+from django.shortcuts import redirect
 from rest_framework.views import APIView
 
-from thoth.olx.models import OlxApp, OlxUser
-from django.contrib.auth.mixins import LoginRequiredMixin
+from thoth.olx.models import OlxApp
+from thoth.olx.models import OlxUser
+
+from .serializers import OlxAuthorizationSerializer
 
 logger = logging.getLogger("olx")
 
 
 class OlxAuthorizationAPIView(LoginRequiredMixin, APIView):
+    serializer_class = OlxAuthorizationSerializer
 
-    login_url = '/accounts/login/'
+    login_url = "/accounts/login/"
 
     def get(self, request, *args, **kwargs):
-        code = request.query_params.get("code")
-        state = request.query_params.get("state")
+        serializer = self.serializer_class(data=request.query_params)
+        if not serializer.is_valid():
+            for field, error in serializer.errors.items():
+                messages.error(request, f"{field.capitalize()}: {error[0]}")
+            return redirect("olx-accounts")
+
+        code = serializer.validated_data["code"]
+        state = serializer.validated_data["state"]
 
         account = get_object_or_404(OlxApp, id=state)
 
         if not account:
             messages.error(request, "Account not found")
-            return redirect("some_error_page")
+            return redirect("olx-accounts")
 
         token_url = f"https://www.{account.client_domain}/api/open/oauth/token"
         payload = {
@@ -57,8 +68,11 @@ class OlxAuthorizationAPIView(LoginRequiredMixin, APIView):
                 if olx_user:
                     # Проверка, что текущий пользователь является владельцем olx_user
                     if olx_user.owner != request.user:
-                        messages.error(request, f"You do not have permission to update this OLX account ({olx_user.email})")
-                        return redirect("home")
+                        messages.error(
+                            request,
+                            f"You do not have permission to update this OLX account ({olx_user.email})",
+                        )
+                        return redirect("olx-accounts")
 
                     # Обновление токенов для существующего пользователя
                     olx_user.access_token = access_token
@@ -75,18 +89,18 @@ class OlxAuthorizationAPIView(LoginRequiredMixin, APIView):
                         phone=user_data["phone"],
                         access_token=access_token,
                         refresh_token=refresh_token,
-                        owner=request.user
+                        owner=request.user,
                     )
                     messages.success(request, "OLX Account successfully added")
 
-                return redirect("home")
+                return redirect("olx-accounts")
 
             else:
                 logger.error(response.json())
                 messages.error(request, "Failed to retrieve user information")
-                return redirect("home")
+                return redirect("olx-accounts")
 
         else:
             logger.error(f"Failed to obtain tokens: {response.json()}")
             messages.error(request, f"Failed to obtain tokens: {response.json()}")
-            return redirect("home")
+            return redirect("olx-accounts")

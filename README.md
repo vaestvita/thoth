@@ -26,17 +26,19 @@ pip install -r requirements/production.txt
 
 cp docs/example/env_example .env 
 nano .env
-заменить HOME_URL, ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS на свои значения
-HOME_URL - домен по которму будет доступен thoth (example.com)
+заменить ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS на свои значения
 
 python manage.py migrate
 python manage.py collectstatic
 python manage.py createsuperuser
 
 
-python manage.py runserver 0.0.0.0:8000
+python manage.py runserver 0.0.0.0:8000 (для тестирования и отладки)
 
 ```
+
+## База данных 
+Модуль [DJ-Database-URL](https://github.com/jazzband/dj-database-url?tab=readme-ov-file#url-schema) позволяет подключать различные базы. См документацию по ссылке.
 
 После запуска сервера в файле .env будет создан ADMIN_URL, который необходимо исопльзовать для входа в админку
 

@@ -27,9 +27,9 @@ def send_whatsapp_message(access_token, phone_number_id, to, message):
     return response
 
 
-def send_message(domain, message, line_id, phones):
+def send_message(appinstance, message, line_id, phones):
     # Найти объект Line по line_id и домену
-    line = Line.objects.filter(line_id=line_id, portal__domain=domain).first()
+    line = Line.objects.filter(line_id=line_id, app_instance=appinstance).first()
 
     if not line:
         logger.error(f"Line ID {line_id} not found")
@@ -39,7 +39,7 @@ def send_message(domain, message, line_id, phones):
         )
 
     # Найти объект Waba, связанный с этим Line
-    waba = Waba.objects.filter(bitrix__domain=domain, phones__line=line).first()
+    waba = Waba.objects.filter(phones__line=line).first()
     if not waba:
         return None
 
@@ -65,7 +65,7 @@ def send_message(domain, message, line_id, phones):
             return Response({f"Message sent to {phone}"}, status=status.HTTP_200_OK)
 
 
-def get_file(access_token, media_id, filename, domain, storage_id):
+def get_file(access_token, media_id, filename, appinstance, storage_id):
     headers = {"Authorization": f"Bearer {access_token}"}
 
     file_data = requests.get(f"{FB_URL}{media_id}", headers=headers)
@@ -83,7 +83,7 @@ def get_file(access_token, media_id, filename, domain, storage_id):
         "data": {"NAME": f"{media_id}_{filename}"},
     }
 
-    upload_to_bitrix = call_method(domain, "disk.storage.uploadfile", payload)
+    upload_to_bitrix = call_method(appinstance, "disk.storage.uploadfile", payload)
     if "result" in upload_to_bitrix:
         return upload_to_bitrix["result"]["DOWNLOAD_URL"]
     else:
@@ -129,11 +129,10 @@ def message_processing(request):
         phone = Phone.objects.get(phone_id=phone_number_id)
         message_data["LINE"] = phone.line.line_id
         waba = phone.waba
-        domain = (
-            waba.bitrix.domain
-        )  # Получение значения domain из связанной модели Bitrix24Portal
+        appinstance = phone.app_instance
+
         access_token = waba.access_token
-        storage_id = waba.bitrix.storage_id
+        storage_id = phone.app_instance.storage_id
     except Phone.DoesNotExist:
         return Response(
             {"error": "Phone with given phone_number_id not found"},
@@ -164,7 +163,9 @@ def message_processing(request):
                 f"{filename}",
             )
 
-            file_url = get_file(access_token, media_id, filename, domain, storage_id)
+            file_url = get_file(
+                access_token, media_id, filename, appinstance, storage_id
+            )
             if file_url:
                 message_data["MESSAGES"][0]["message"]["files"] = [{}]
                 message_data["MESSAGES"][0]["message"]["files"][0]["url"] = file_url
@@ -173,7 +174,7 @@ def message_processing(request):
             contacts = value["messages"][0]["contacts"]
             message_data["MESSAGES"][0]["message"]["text"] = format_contacts(contacts)
 
-        call_method(domain, "imconnector.send.messages", message_data)
+        call_method(appinstance, "imconnector.send.messages", message_data)
 
     statuses = value.get("statuses", [])
     for item in statuses:
@@ -188,9 +189,13 @@ def message_processing(request):
             }
 
             if status_name == "delivered":
-                call_method(domain, "imconnector.send.status.delivery", message_data)
+                call_method(
+                    appinstance, "imconnector.send.status.delivery", message_data
+                )
             elif status_name == "read":
-                call_method(domain, "imconnector.send.status.reading", message_data)
+                call_method(
+                    appinstance, "imconnector.send.status.reading", message_data
+                )
 
         if status_name == "failed":
             errors = item.get("errors", [])
@@ -203,6 +208,6 @@ def message_processing(request):
             message_data["MESSAGES"][0]["user"]["id"] = item.get("recipient_id")
             message_data["MESSAGES"][0]["message"]["text"] = combined_error_message
 
-            call_method(domain, "imconnector.send.messages", message_data)
+            call_method(appinstance, "imconnector.send.messages", message_data)
 
     return Response({"status": "received"}, status=status.HTTP_200_OK)

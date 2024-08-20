@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="faq-container">
+    <h2>Ответы на вопросы</h2>
+    {% for faq in faqs %}
+        <div class="faq-item">
+            <div class="faq-question"><h4>{{ faq.question }}</h4></div>
+            <div class="faq-answer">{{ faq.answer|safe }}</div>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}
+

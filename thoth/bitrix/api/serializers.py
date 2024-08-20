@@ -8,11 +8,9 @@ class PortalSerializer(serializers.ModelSerializer):
         model = Bitrix
         fields = [
             "owner",
+            "user_id",
             "domain",
             "client_endpoint",
-            "access_token",
-            "refresh_token",
-            "application_token",
         ]
 
     def create(self, validated_data):

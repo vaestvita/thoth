@@ -1,8 +1,5 @@
 from django.contrib import admin
 
-from thoth.bitrix.crest import call_method
-from thoth.bitrix.models import Line
-
 from .models import OlxApp
 from .models import OlxUser
 
@@ -41,10 +38,7 @@ class OlxUserAdmin(admin.ModelAdmin):
         "olx_id",
         "owner",
         "olxapp",
-        "bitrix",
         "email",
-        "name",
-        "phone",
         "line",
     )
     search_fields = ("olx_id", "email", "name", "phone")
@@ -56,13 +50,12 @@ class OlxUserAdmin(admin.ModelAdmin):
         "name",
         "phone",
         "olxapp",
-        "line",
+        # "line",
     )
     fields = (
         "olxapp",
-        "owner",
-        "bitrix",
         "line",
+        "owner",
         "periodicity",
         "olx_id",
         "email",
@@ -72,35 +65,35 @@ class OlxUserAdmin(admin.ModelAdmin):
         "refresh_token",
     )
 
-    def save_model(self, request, obj, form, change):
-        super().save_model(request, obj, form, change)
+    # def save_model(self, request, obj, form, change):
+    #     super().save_model(request, obj, form, change)
 
-        # Проверяем, есть ли привязка к объекту Битрикс и отсутствует ли линия
-        if obj.bitrix and not obj.line:
-            # Создание открытой линии в Битрикс
-            line_data = {
-                "PARAMS": {
-                    "LINE_NAME": f"THOTH_OLX_{obj.olx_id}",
-                },
-            }
+    #     # Проверяем, есть ли привязка к объекту Битрикс и отсутствует ли линия
+    #     if obj.bitrix and not obj.line:
+    #         # Создание открытой линии в Битрикс
+    #         line_data = {
+    #             "PARAMS": {
+    #                 "LINE_NAME": f"THOTH_OLX_{obj.olx_id}",
+    #             },
+    #         }
 
-            create_line = call_method(obj.bitrix, "imopenlines.config.add", line_data)
+    #         create_line = call_method(obj.bitrix, "imopenlines.config.add", line_data)
 
-            # Активация открытой линии
-            if "result" in create_line:
-                # Создаем запись в модели Line и связываем её с текущим объектом OlxUser
-                line = Line.objects.create(
-                    line_id=create_line["result"],
-                    portal=obj.bitrix,
-                    content_object=obj,
-                )
-                obj.line = line
-                obj.save()
+    #         # Активация открытой линии
+    #         if "result" in create_line:
+    #             # Создаем запись в модели Line и связываем её с текущим объектом OlxUser
+    #             line = Line.objects.create(
+    #                 line_id=create_line["result"],
+    #                 portal=obj.bitrix,
+    #                 content_object=obj,
+    #             )
+    #             obj.line = line
+    #             obj.save()
 
-                payload = {
-                    "CONNECTOR": "thoth_olx",
-                    "LINE": line.line_id,
-                    "ACTIVE": 1,
-                }
+    #             payload = {
+    #                 "CONNECTOR": "thoth_olx",
+    #                 "LINE": line.line_id,
+    #                 "ACTIVE": 1,
+    #             }
 
-                call_method(obj.bitrix, "imconnector.activate", payload)
+    #             call_method(obj.bitrix, "imconnector.activate", payload)

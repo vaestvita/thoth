@@ -1,7 +1,7 @@
-# DEBUG=True
 DATABASE_URL=postgres://postgres:12345678@127.0.0.1:5432/thoth
+DJANGO_ADMIN_URL=admin/
+DJANGO_SECRET_KEY=pz07jt(ptva!hl%o4)f%f!%gstg$@0z_szz-nxju9xgkwu0o$z
 CELERY_BROKER_URL=redis://localhost:6379/0
-REDIS_URL=redis://localhost:6379/0
-DJANGO_ALLOWED_HOSTS=127.0.0.1,app.thoth.kz
-HOME_URL=https://app.thoth.kz
-CSRF_TRUSTED_ORIGINS=https://app.thoth.kz
+REDIS_URL=redis://redis:6379/0
+CSRF_TRUSTED_ORIGINS=https://example.com
+DJANGO_ALLOWED_HOSTS=127.0.0.1,example.com
