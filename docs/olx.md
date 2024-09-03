@@ -7,7 +7,7 @@
 
 + Для обеспечения работоспособности планировщика THOTH на сервере необходимо установить Redis 
 + Примеры для автоматического запуска очереди задач celery [здесь](./example/)
-+ Mem. для ручного запуска в win использовать "celery -A thoth worker -l info --pool=solo"
++ Mem. для ручного запуска в win использовать "celery -A config.celery_app worker -l info --pool=solo"
 ## Создание приложения 
 + Зарегистрируйтесь как разработчик на портале https://developer.olxgroup.com/register?market=olx
 + My OLX > Apps > заполнить поля. 
