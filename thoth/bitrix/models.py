@@ -7,11 +7,16 @@ from django.utils import timezone
 
 
 class App(models.Model):
+    APP_NAME = [
+        ("olx", "olx"),
+        ("waba", "waba"),
+    ]
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     site = models.ForeignKey(
         Site, on_delete=models.CASCADE, related_name="apps", blank=True, null=True
     )
-    name = models.CharField(max_length=255, blank=True, unique=True)
+    name = models.CharField(max_length=255, blank=True, unique=True, choices=APP_NAME)
+    connector = models.BooleanField(default=False)
     client_id = models.CharField(max_length=255, blank=True, unique=True)
     client_secret = models.CharField(max_length=255, blank=True)
 

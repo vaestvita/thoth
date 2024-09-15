@@ -36,11 +36,17 @@ python manage.py createsuperuser
 python manage.py runserver 0.0.0.0:8000 (для тестирования и отладки)
 
 ```
+После запуска сервера в файле .env будет создан ADMIN_URL, который необходимо исопльзовать для входа в админку
 
 ## База данных 
 Модуль [DJ-Database-URL](https://github.com/jazzband/dj-database-url?tab=readme-ov-file#url-schema) позволяет подключать различные базы. См документацию по ссылке.
 
-После запуска сервера в файле .env будет создан ADMIN_URL, который необходимо исопльзовать для входа в админку
+## Обновление
+```
+cd /opt/thtoh
+git pull
+python manage.py migrate
+```
 
 ## Прокси сервер 
 + Процесс настройки Nginx и Gunicorn можно посмотреть [здесь](https://www.digitalocean.com/community/tutorials/how-to-set-up-django-with-postgres-nginx-and-gunicorn-on-ubuntu)

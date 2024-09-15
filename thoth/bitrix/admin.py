@@ -9,7 +9,7 @@ from .models import App, AppInstance, Bitrix, Line, FAQ
 class AppAdmin(admin.ModelAdmin):
     list_display = ("name", "id", "site")
     search_fields = ("name",)
-    fields = ("id", "site", "name", "client_id", "client_secret")
+    fields = ("id", "connector", "site", "name", "client_id", "client_secret")
     readonly_fields = ("id",)
 
 

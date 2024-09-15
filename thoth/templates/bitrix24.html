@@ -1,7 +1,5 @@
 {% extends "base.html" %}
 
-{% load crispy_forms_tags %}
-
 {% block content %}
   <div class="container">
     <h3>Ваши Bitrix24</h3>
@@ -32,23 +30,20 @@
     {% else %}
       <p>No Bitrix24 portals found.</p>
     {% endif %}
-    <h4>Добавить новый портал (<a href="/faq/" target="_blank">инструкция</a>)</h4>
+    <h4>Привязка портала (<a href="/faq/" target="_blank">инструкция</a>)</h4>
     <form method="POST" action="{% url 'portals' %}">
       {% csrf_token %}
-      <div style="width: 30%;" class="form-row align-items-center">
-        <div class="col-auto">{{ portal_form.portal_address|as_crispy_field }}</div>
-        <div class="col-auto">
-          <button type="submit" name="send_code" class="btn btn-primary">Отправить код</button>
+      <div style="width: 40%;" class="form-group d-flex align-items-center">
+        {{ verification_form.confirmation_code }}
+       <button type="submit" name="confirm" class="btn btn-primary">Подтвердить</button>
         </div>
-      </div>
     </form>
-    <h4>Привязка портала</h4>
+    <h4>Получение кода</h4>
     <form method="POST" action="{% url 'portals' %}">
       {% csrf_token %}
-      <div style="width: 30%;" class="form-row align-items-center">
-        {{ verification_form.confirmation_code|as_crispy_field }}
-       <button type="submit" name="confirm" class="btn btn-secondary">Подтвердить</button>
-        </div>
+      <div style="width: 40%;" class="form-group d-flex align-items-center">
+       {{ portal_form.portal_address }}
+      <button type="submit" name="send_code" class="btn btn-secondary">Отправить</button>
       </div>
     </form>
   </div>
