@@ -1,7 +1,7 @@
 from rest_framework.mixins import CreateModelMixin
-from rest_framework.mixins import ListModelMixin
 from rest_framework.renderers import JSONRenderer
 from rest_framework.viewsets import GenericViewSet
+from rest_framework.response import Response
 
 from thoth.bitrix.models import Bitrix
 
@@ -11,12 +11,15 @@ from ..utils import sms_processor
 from .serializers import PortalSerializer
 
 
-class PortalViewSet(CreateModelMixin, GenericViewSet, ListModelMixin):
+class PortalViewSet(CreateModelMixin, GenericViewSet):
     queryset = Bitrix.objects.all()
     serializer_class = PortalSerializer
 
     def create(self, request, *args, **kwargs):
         return event_processor(request)
+
+    def head(self, request, *args, **kwargs):
+        return Response(headers={'Allow': 'POST, HEAD'})
 
 
 class PlacementOptionsViewSet(GenericViewSet, CreateModelMixin):
