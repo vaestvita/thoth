@@ -8,7 +8,7 @@
 + + name - имя вашего приложения 
 + + Access token - Постоянный или временный маркер
 + + Verify token - скопируйте 
-![alt text](img/waba.png)
+
 + На портале разработчиков - Quickstart > Configuration > 
 + + Callback URL - https://example.com/api/waba/?api-key=XXXXXXX
 + + Verify token - Verify token из предыдущего шага 
