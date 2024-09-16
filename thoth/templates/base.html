@@ -42,6 +42,17 @@
       <script defer src="{% static 'js/project.js' %}"></script>
     {% endblock javascript %}
   </head>
+  
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-33XNMJS79W"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-33XNMJS79W');
+  </script>
+
   <body class="{% block bodyclass %}{% endblock bodyclass %}">
     {% block body %}
       <div class="mb-1">
