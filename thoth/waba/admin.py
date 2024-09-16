@@ -28,7 +28,9 @@ class PhoneAdmin(admin.ModelAdmin):
         "line",
         "sms_service",
     )
-    readonly_fields = ("app_instance", "line", )
+    readonly_fields = (
+        # "app_instance", 
+                       "line", )
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
