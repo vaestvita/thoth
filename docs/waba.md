@@ -1,4 +1,6 @@
 ## Подключение WhatsApp (WABA)
+
+Видеоинструкция https://youtu.be/cSirpfq5rPQ
 + Рекомендуется получить [Постоянный маркер](https://developers.facebook.com/docs/whatsapp/business-management-api/get-started), иначе придется перевыпускать токен каждый день
 + Создайте приложение на [портале разработчиков](https://developers.facebook.com/apps/)
 + В панели подключите продукты Webhooks, WhatsApp
