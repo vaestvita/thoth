@@ -44,8 +44,10 @@ python manage.py runserver 0.0.0.0:8000 (для тестирования и от
 ## Обновление
 ```
 cd /opt/thtoh
+source .venv/bin/activate
 git pull
 python manage.py migrate
+systemctl restart thoth
 ```
 
 ## Прокси сервер 
