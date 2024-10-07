@@ -11,7 +11,7 @@ User=root
 Group=root
 WorkingDirectory=/opt/thoth
 Environment="PATH=/opt/thoth/.venv/bin"
-ExecStart=/opt/thoth/.venv/bin/gunicorn --access-logfile - --workers 3 --bind unix:/run/thoth.sock thoth.wsgi:application
+ExecStart=/opt/thoth/.venv/bin/gunicorn --access-logfile - --workers 3 --bind unix:/run/thoth.sock config.wsgi:application
 
 [Install]
 WantedBy=multi-user.target
