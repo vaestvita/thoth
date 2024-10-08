@@ -7,10 +7,11 @@
 ![alt text](img/token.png)
 
 + В разделе Sites переименуйте example.com в домен по котрому будет доступен thoth
-+ Bitrix > Apps - добавить приложение. Заполнить имя (waba, olx) и выбрать домен, установить чекбокс "Connector", Скопировать Id
++ Bitrix > Apps - добавить приложение. Заполнить имя (waba, olx) и выбрать домен, установить чекбокс "Connector"
++ После сохранения записи скопировать Id, который отображается в списке приложений.
 
 + В Битрикс24 создайте серверное локальное приложение без интерфейса (Приложения – Разработчикам – Другое – Локальное приложение) в Битрикс24 и заполните соответствующие поля (Путь вашего обработчика и Путь для первоначальной установки) 
-+ Необходимые права (Настройка прав): crm,imopenlines,contact_center,user,messageservice,im,imconnector,disk
++ Необходимые права (Настройка прав): crm, imopenlines, contact_center, user, messageservice, im, imconnector, disk
 ```
 
 url установки https://example.com/api/bitrix/?api-key=XXXXXXX&app-id=YYYYYYY

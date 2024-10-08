@@ -11,8 +11,7 @@ from .models import Waba
 @admin.register(Waba)
 class WabaAdmin(admin.ModelAdmin):
     list_display = ("name", "verify_token", "owner")
-    fields = ("name", "verify_token", "access_token", "owner")
-    readonly_fields = ("verify_token",)
+    fields = ("name", "access_token", "owner")
 
 
 @admin.register(Phone)

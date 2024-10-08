@@ -4,13 +4,11 @@ from django.contrib import admin
 from .models import App, AppInstance, Bitrix, Line, FAQ
 
 
-
 @admin.register(App)
 class AppAdmin(admin.ModelAdmin):
     list_display = ("name", "id", "site")
     search_fields = ("name",)
-    fields = ("id", "connector", "site", "name", "client_id", "client_secret")
-    readonly_fields = ("id",)
+    fields = ("connector", "site", "name", "client_id", "client_secret")
 
 
 @admin.register(AppInstance)

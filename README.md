@@ -27,6 +27,7 @@ pip install -r requirements/production.txt
 cp docs/example/env_example .env 
 nano .env
 заменить ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS на свои значения
+Заменить значение DATABASE_URL на свое значение (база psql должна быть предварительно создана)
 
 python manage.py migrate
 python manage.py collectstatic
@@ -36,7 +37,7 @@ python manage.py createsuperuser
 python manage.py runserver 0.0.0.0:8000 (для тестирования и отладки)
 
 ```
-После запуска сервера в файле .env будет создан ADMIN_URL, который необходимо исопльзовать для входа в админку
+Путь по умолчанию для входа в админку /admin. Чтобы задать свой путь измените значение переменной DJANGO_ADMIN_URL в .env
 
 ## База данных 
 Модуль [DJ-Database-URL](https://github.com/jazzband/dj-database-url?tab=readme-ov-file#url-schema) позволяет подключать различные базы. См документацию по ссылке.

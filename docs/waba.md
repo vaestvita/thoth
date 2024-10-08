@@ -7,7 +7,7 @@
 + В админке THOTH - WABA - Add waba 
 + + name - имя вашего приложения 
 + + Access token - Постоянный или временный маркер
-+ + Verify token - скопируйте 
++ + После сохранения в списке WABA скопируйте Verify token для нужной учётки
 
 + На портале разработчиков - Quickstart > Configuration > 
 + + Callback URL - https://example.com/api/waba/?api-key=XXXXXXX
