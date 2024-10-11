@@ -12,6 +12,9 @@ class App(models.Model):
         ("waba", "waba"),
     ]
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True
+    )
     site = models.ForeignKey(
         Site, on_delete=models.CASCADE, related_name="apps", blank=True, null=True
     )
@@ -81,11 +84,3 @@ class VerificationCode(models.Model):
 
     def is_valid(self):
         return self.expires_at > timezone.now()
-
-
-class FAQ(models.Model):
-    question = models.CharField(max_length=255)
-    answer = models.TextField()
-
-    def __str__(self):
-        return self.question

@@ -9,7 +9,7 @@ from django.utils import timezone
 from .crest import call_method
 from .forms import BitrixPortalForm
 from .forms import VerificationCodeForm
-from .models import AppInstance, Bitrix, FAQ, VerificationCode
+from .models import AppInstance, Bitrix, VerificationCode
 
 
 @login_required
@@ -92,8 +92,3 @@ def portals(request):
             "verification_form": verification_form,
         },
     )
-
-
-def faq_view(request):
-    faqs = FAQ.objects.all()
-    return render(request, 'faq.html', {'faqs': faqs})

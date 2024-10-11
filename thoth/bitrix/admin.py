@@ -1,14 +1,14 @@
 from django import forms
 from django.contrib import admin
 
-from .models import App, AppInstance, Bitrix, Line, FAQ
+from .models import App, AppInstance, Bitrix, Line
 
 
 @admin.register(App)
 class AppAdmin(admin.ModelAdmin):
     list_display = ("name", "id", "site")
     search_fields = ("name",)
-    fields = ("connector", "site", "name", "client_id", "client_secret")
+    fields = ("owner", "connector", "site", "name", "client_id", "client_secret")
 
 
 @admin.register(AppInstance)
@@ -51,11 +51,3 @@ class LineAdmin(admin.ModelAdmin):
     search_fields = ("line_id",)
     fields = ("line_id", "app_instance")
     readonly_fields = ("line_id", "app_instance")
-
-
-
-
-@admin.register(FAQ)
-class FAQAdmin(admin.ModelAdmin):
-    list_display = ("question",)
-    fields = ("question", "answer")

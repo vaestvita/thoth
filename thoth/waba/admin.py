@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib import messages
 
 from thoth.bitrix.crest import call_method
 from thoth.bitrix.models import Line
@@ -28,8 +29,8 @@ class PhoneAdmin(admin.ModelAdmin):
         "sms_service",
     )
     readonly_fields = (
-        # "app_instance", 
-                       "line", )
+        "line",
+    )
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -63,10 +64,19 @@ class PhoneAdmin(admin.ModelAdmin):
 
                 call_method(obj.app_instance, "imconnector.activate", payload)
 
+
         # Регистрация SMS-провайдера
         if obj.sms_service and not obj.old_sms_service:
-            api_key = request.user.auth_token.key
-            messageservice_add(obj.app_instance, obj.phone, obj.line.line_id, api_key)
+            # Проверка наличия объекта auth_token
+            owner = obj.line.app_instance.app.owner
+            if not hasattr(owner, 'auth_token'):
+                obj.sms_service = False
+                obj.save()
+                messages.error(request, f"API key not found for user {owner}. Operation aborted.")
+                return
+
+            api_key = owner.auth_token.key
+            messageservice_add(obj.app_instance, obj.phone, obj.line.line_id, api_key, 'waba')
         elif not obj.sms_service and obj.old_sms_service:
             call_method(
                 obj.app_instance,
