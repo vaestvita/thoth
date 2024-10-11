@@ -67,8 +67,9 @@ def register_connector(appinstance: AppInstance, api_key: str):
 # Регистрация SMS-провайдера
 def messageservice_add(appinstance, phone, line, api_key, service):
     url = appinstance.app.site
+    filtered_text = ''.join(filter(str.isalnum, phone))
     payload = {
-        "CODE": f"THOTH_{phone}_{line}",
+        "CODE": f"THOTH_{filtered_text}_{line}",
         "NAME": f"THOTH ({phone})",
         "TYPE": "SMS",
         "HANDLER": f"https://{url}/api/bitrix/sms/?api-key={api_key}&service={service}",

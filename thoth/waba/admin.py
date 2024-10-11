@@ -76,13 +76,21 @@ class PhoneAdmin(admin.ModelAdmin):
                 return
 
             api_key = owner.auth_token.key
-            messageservice_add(obj.app_instance, obj.phone, obj.line.line_id, api_key, 'waba')
+            resp = messageservice_add(obj.app_instance, obj.phone, obj.line.line_id, api_key, 'waba')
+            if 'error' in resp:
+                obj.sms_service = False
+                obj.save()
+                messages.error(request, resp)
+
         elif not obj.sms_service and obj.old_sms_service:
-            call_method(
+            phone = ''.join(filter(str.isalnum, obj.phone))
+            resp = call_method(
                 obj.app_instance,
                 "messageservice.sender.delete",
-                {"CODE": f"THOTH_{obj.phone}_{obj.line.line_id}"},
+                {"CODE": f"THOTH_{phone}_{obj.line.line_id}"},
             )
+            if 'error' in resp:
+                messages.error(request, resp)
 
         obj.old_sms_service = obj.sms_service
         obj.save()
