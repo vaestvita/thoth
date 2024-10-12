@@ -65,3 +65,8 @@ if settings.DEBUG:
         import debug_toolbar
 
         urlpatterns = [path("__debug__/", include(debug_toolbar.urls))] + urlpatterns
+
+
+admin.site.site_header = "THOTH Admin"
+admin.site.site_title = "THOTH Admin Portal"
+admin.site.index_title = "Welcome to THOTH Portal"
