@@ -1,48 +1,44 @@
+[Русский](README_ru.md)
+
 ## Thoth: Bitrix24 Integration Hub 
 
-### Описание
+### Description
 
-Одна инсталляция Thoth позволяет создавать и обслуживать неограниченное количество локальных и тиражных приложений Битрикс24 с OAuth 2.0 авторизацией.
+One Thoth installation allows you to create and manage an unlimited number of local and mass-distributed Bitrix24 applications with OAuth 2.0 authorization.
 
-## Видеоинструкции на Youtube
+## Video Instructions on YouTube
 
 https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 
-
-## Установка 
+## Installation
 
 + Python 3.12
 + PostgreSQL 16
 + Redis
 
 ```
-cd /opt
-git clone https://github.com/vaestvita/thoth
-cd thoth
+cd /opt git clone https://github.com/vaestvita/thoth cd thoth
 
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements/production.txt
+python3 -m venv .venv source .venv/bin/activate pip install -r requirements/production.txt
 
-cp docs/example/env_example .env 
-nano .env
-заменить ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS на свои значения
-Заменить значение DATABASE_URL на свое значение (база psql должна быть предварительно создана)
+cp docs/example/env_example .env nano .env replace ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS with your values 
+Replace the value of DATABASE_URL with your own (the psql database must be created beforehand)
 
-python manage.py migrate
-python manage.py collectstatic
+python manage.py migrate 
+python manage.py collectstatic 
 python manage.py createsuperuser
 
-
-python manage.py runserver 0.0.0.0:8000 (для тестирования и отладки)
-
+python manage.py runserver 0.0.0.0:8000 (for testing and debugging)
 ```
-Путь по умолчанию для входа в админку /admin. Чтобы задать свой путь измените значение переменной DJANGO_ADMIN_URL в .env
 
-## База данных 
-Модуль [DJ-Database-URL](https://github.com/jazzband/dj-database-url?tab=readme-ov-file#url-schema) позволяет подключать различные базы. См документацию по ссылке.
 
-## Обновление
+The default path to access the admin panel is /admin. To set your own path, change the DJANGO_ADMIN_URL variable in the .env file.
+
+## Database
+The [DJ-Database-URL](https://github.com/jazzband/dj-database-url?tab=readme-ov-file#url-schema) module allows connecting various databases. See the documentation via the link.
+
+## Update
+
 ```
 cd /opt/thoth
 source .venv/bin/activate
@@ -51,19 +47,21 @@ python manage.py migrate
 systemctl restart thoth
 ```
 
-## Прокси сервер 
-+ Процесс настройки Nginx и Gunicorn можно посмотреть [здесь](https://www.digitalocean.com/community/tutorials/how-to-set-up-django-with-postgres-nginx-and-gunicorn-on-ubuntu)
-+ Примеры файлов конфигураций есть в [документации](docs/example)
 
-## Логирование 
-При необходимости можно включить подробные логи в консоль. Для этого в файле .env укажите уровень логиования LOG_LEVEL=DEBUG, перезапустите thoth и введите команду 
+## Proxy Server
++ You can view the process of setting up Nginx and Gunicorn [here](https://www.digitalocean.com/community/tutorials/how-to-set-up-django-with-postgres-nginx-and-gunicorn-on-ubuntu)
++ Example configuration files are available in the [documentation](docs/example)
+
+## Logging
+If needed, you can enable detailed logs in the console. To do this, specify the logging level LOG_LEVEL=DEBUG in the .env file, restart thoth, and run the command
 
 ```
 journalctl -u thoth -f
 ```
 
-## Подключение 
 
-+ [Битрикс](docs/bitrix.md)
+## Integration
+
++ [Bitrix24 CRM](docs/bitrix.md)
 + [(WhatsApp) WABA](docs/waba.md)
 + [OLX](docs/olx.md)
