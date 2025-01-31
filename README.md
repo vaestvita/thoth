@@ -20,8 +20,13 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 cd /opt git clone https://github.com/vaestvita/thoth cd thoth
 cd thoth
 
+<<<<<<< HEAD
 python3 -m venv .venv 
 source .venv/bin/activate 
+=======
+python3 -m venv .venv
+source .venv/bin/activate
+>>>>>>> 9a5ccf017a5e07b33712a19ea04fb30fb57b1583
 pip install -r requirements/production.txt
 
 cp docs/example/env_example .env nano .env replace ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS with your values 
