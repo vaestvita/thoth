@@ -20,8 +20,6 @@ https://www.youtube.com/playlist?list=PLeniNJl73vVmmsG1XzTlimbZJf969LIpS
 cd /opt git clone https://github.com/vaestvita/thoth cd thoth
 cd thoth
 
-python3 -m venv .venv 
-source .venv/bin/activate 
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements/production.txt
